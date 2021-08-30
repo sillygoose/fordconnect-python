@@ -6,3 +6,7 @@ fordconnect:
     vin: !secret fc_vehicle_vin
     username: !secret fc_vehicle_username
     password: !secret fc_vehicle_password
+
+# Geocodio for geocoding support
+geocodio:
+  api_key: !secret geocodio_api_key

@@ -106,12 +106,6 @@ def secret_yaml(loader: FullLineLoader, node: yaml.nodes.Node) -> JSON_TYPE:
     raise ConfigError(f"Secret '{node.value}' not defined")
 
 
-# fc_vehicle_name
-# fc_vehicle_vin
-# fc_vehicle_username
-# fc_vehicle_password
-
-
 def check_fordconnect(config):
     options = {}
     fordconnect_key = config.fordconnect
@@ -133,6 +127,17 @@ def check_fordconnect(config):
     return options
 
 
+def check_geocodio(config):
+    options = {}
+    geocodio_key = config.geocodio
+    if not geocodio_key or "api_key" not in geocodio_key.keys():
+        _LOGGER.warning("Expected option 'api_key' in the 'geocodio' settings")
+        return None
+
+    options["api_key"] = geocodio_key.api_key
+    return options
+
+
 def read_config():
     try:
         yaml.FullLoader.add_constructor("!secret", secret_yaml)
@@ -140,7 +145,8 @@ def read_config():
         config = config_from_yaml(data=yaml_file, read_from_file=True)
 
         fordconnect_options = check_fordconnect(config)
-        if None in [fordconnect_options]:
+        geocodio_options = check_geocodio(config)
+        if None in [fordconnect_options, geocodio_options]:
             return None
         return config
 

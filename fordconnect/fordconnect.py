@@ -10,7 +10,7 @@ import logfiles
 from readconfig import read_config
 
 from fordpass import Vehicle
-
+from geocodio import GeocodioClient
 
 _LOGGER = logging.getLogger()
 
@@ -26,10 +26,20 @@ def main():
         _LOGGER.error("Error processing YAML configuration - exiting")
         return
 
+    params = config.fordconnect.vehicle
+    vehicle = Vehicle(username=params.username, password=params.password, vin=params.vin)
+    previousStatus = vehicle.status()
+    gps = previousStatus.get("gps")
+    lat = gps.get("latitude")
+    long = gps.get("longitude")
+
+    client = GeocodioClient(config.geocodio.api_key)
+    locationInfo = client.reverse((lat, long))
+    nearestLocation = locationInfo.get("results")
+    atLocation = nearestLocation[0]
+    _LOGGER.info(f"Initial vehicle location is near {atLocation.get('formatted_address')}")
+
     try:
-        params = config.fordconnect.vehicle
-        vehicle = Vehicle(username=params.username, password=params.password, vin=params.vin)
-        previousStatus = vehicle.status()
         limit = 10
         passes = 0
         while True:
