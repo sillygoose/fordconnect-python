@@ -1,0 +1,8 @@
+# Edit this file to reflect your FordConnect details
+
+fordconnect:
+  vehicle:
+    name: !secret fc_vehicle_name
+    vin: !secret fc_vehicle_vin
+    username: !secret fc_vehicle_username
+    password: !secret fc_vehicle_password
