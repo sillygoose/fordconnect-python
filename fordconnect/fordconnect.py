@@ -18,35 +18,67 @@ _VEHICLECLIENT = None
 _MILES = True
 
 
+# 'Fully open position'
+# 'Btwn 10 % and 60 % open'
+# 'Fully closed position'
+def decode_windows(status):
+    windowPosition = [
+        status.get("windowPosition").get("driverWindowPosition").get("value"),
+        status.get("windowPosition").get("passWindowPosition").get("value"),
+        status.get("windowPosition").get("rearDriverWindowPos").get("value"),
+        status.get("windowPosition").get("rearPassWindowPos").get("value"),
+    ]
+    if "Btwn 10 % and 60 % open" in windowPosition or "Fully open position" in windowPosition:
+        _LOGGER.info(f"One or more windows are open")
+    else:
+        _LOGGER.info(f"All windows are closed")
+
+
+# 'Closed'
+# 'Ajar'
 def decode_doors(status):
-    rightRearDoor = status.get("doorStatus").get("rightRearDoor").get("value")
-    leftRearDoor = status.get("doorStatus").get("leftRearDoor").get("value")
-    driverDoor = status.get("doorStatus").get("driverDoor").get("value")
-    passengerDoor = status.get("doorStatus").get("passengerDoor").get("value")
-    hoodDoor = status.get("doorStatus").get("hoodDoor").get("value")
-    tailgateDoor = status.get("doorStatus").get("tailgateDoor").get("value")
-    innerTailgateDoor = status.get("doorStatus").get("innerTailgateDoor").get("value")
-    _LOGGER.info(f"Door status is {driverDoor}")
+    doorStatus = [
+        status.get("doorStatus").get("rightRearDoor").get("value"),
+        status.get("doorStatus").get("leftRearDoor").get("value"),
+        status.get("doorStatus").get("driverDoor").get("value"),
+        status.get("doorStatus").get("passengerDoor").get("value"),
+        status.get("doorStatus").get("hoodDoor").get("value"),
+        status.get("doorStatus").get("tailgateDoor").get("value"),
+        status.get("doorStatus").get("innerTailgateDoor").get("value"),
+    ]
+    if "Ajar" in doorStatus:
+        _LOGGER.info(f"Door status is {doorStatus}")
+    else:
+        _LOGGER.info(f"All doors are closed")
 
 
 def decode_ignition(status):
     ignitionStatus = status.get("ignitionStatus").get("value")
-    _LOGGER.info(f"Ignition status is {ignitionStatus}")
+    _LOGGER.info(f"Ignition status is '{ignitionStatus}'")
 
 
 def decode_charging(status):
-    chargingStatus = status.get("plugStatus").get("value")
-    _LOGGER.info(f"Charging status {chargingStatus}")
+    chargingStatus = status.get("chargingStatus").get("value")
+    _LOGGER.info(f"Charging status is '{chargingStatus}'")
 
 
 def decode_plug(status):
     plugStatus = status.get("plugStatus").get("value")
-    _LOGGER.info(f"Plug status {plugStatus}")
+    plugState = "plugged in" if plugStatus else "not plugged in"
+    _LOGGER.info(f"Plug status is {plugState}")
 
 
 def decode_tpms(status):
     tirePressureStatus = "are good" if status.get("tirePressure").get("value") == "STATUS_GOOD" else "need checking"
     _LOGGER.info(f"Tire pressures {tirePressureStatus}")
+    KPA_TO_PSI = 0.1450377
+    tirePressures = [
+        int(round(float(status.get("TPMS").get("leftFrontTirePressure").get("value")) * KPA_TO_PSI, 0)),
+        int(round(float(status.get("TPMS").get("rightFrontTirePressure").get("value")) * KPA_TO_PSI, 0)),
+        int(round(float(status.get("TPMS").get("outerLeftRearTirePressure").get("value")) * KPA_TO_PSI, 0)),
+        int(round(float(status.get("TPMS").get("outerRightRearTirePressure").get("value")) * KPA_TO_PSI, 0)),
+    ]
+    _LOGGER.info(f"Tire pressures are {tirePressures}")
 
 
 def decode_odometer(status):
@@ -124,6 +156,7 @@ def main():
 
     _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
 
+    decode_windows(status=currentStatus)
     decode_doors(status=currentStatus)
     decode_ignition(status=currentStatus)
     decode_plug(status=currentStatus)
