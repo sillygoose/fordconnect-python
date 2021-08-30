@@ -6,8 +6,6 @@ import logging
 from datetime import datetime
 
 
-_LOGGER = logging.getLogger()
-
 _LOG_FILE = "log/fordconnect"
 _LOG_FORMAT = "[%(asctime)s] [%(module)s] [%(levelname)s] %(message)s"
 
@@ -33,8 +31,9 @@ def create_application_log():
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
-    _LOGGER.addHandler(console_handler)
-    _LOGGER.setLevel(logging.INFO)
+    logger = logging.getLogger()
+    logger.addHandler(console_handler)
+    logger.setLevel(logging.INFO)
 
     # First entry
-    _LOGGER.info("Created application log %s", filename)
+    logging.info("Created application log %s", filename)

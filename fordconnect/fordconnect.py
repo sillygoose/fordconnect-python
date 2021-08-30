@@ -12,7 +12,6 @@ from readconfig import read_config
 from fordpass import Vehicle
 from geocodio import GeocodioClient
 
-_LOGGER = logging.getLogger()
 _GEOCLIENT = None
 _VEHICLECLIENT = None
 _MILES = True
@@ -29,9 +28,9 @@ def decode_windows(status):
         status.get("windowPosition").get("rearPassWindowPos").get("value"),
     ]
     if "Btwn 10 % and 60 % open" in windowPosition or "Fully open position" in windowPosition:
-        _LOGGER.info(f"One or more windows are open")
+        logging.info(f"One or more windows are open")
     else:
-        _LOGGER.info(f"All windows are closed")
+        logging.info(f"All windows are closed")
 
 
 # 'Closed'
@@ -47,30 +46,30 @@ def decode_doors(status):
         status.get("doorStatus").get("innerTailgateDoor").get("value"),
     ]
     if "Ajar" in doorStatus:
-        _LOGGER.info(f"Door status is {doorStatus}")
+        logging.info(f"Door status is {doorStatus}")
     else:
-        _LOGGER.info(f"All doors are closed")
+        logging.info(f"All doors are closed")
 
 
 def decode_ignition(status):
     ignitionStatus = status.get("ignitionStatus").get("value")
-    _LOGGER.info(f"Ignition status is '{ignitionStatus}'")
+    logging.info(f"Ignition status is '{ignitionStatus}'")
 
 
 def decode_charging(status):
     chargingStatus = status.get("chargingStatus").get("value")
-    _LOGGER.info(f"Charging status is '{chargingStatus}'")
+    logging.info(f"Charging status is '{chargingStatus}'")
 
 
 def decode_plug(status):
     plugStatus = status.get("plugStatus").get("value")
     plugState = "plugged in" if plugStatus else "not plugged in"
-    _LOGGER.info(f"Plug status is {plugState}")
+    logging.info(f"Plug status is {plugState}")
 
 
 def decode_tpms(status):
     tirePressureStatus = "are good" if status.get("tirePressure").get("value") == "STATUS_GOOD" else "need checking"
-    _LOGGER.info(f"Tire pressures {tirePressureStatus}")
+    logging.info(f"Tire pressures {tirePressureStatus}")
     KPA_TO_PSI = 0.1450377
     tirePressures = [
         int(round(float(status.get("TPMS").get("leftFrontTirePressure").get("value")) * KPA_TO_PSI, 0)),
@@ -78,47 +77,47 @@ def decode_tpms(status):
         int(round(float(status.get("TPMS").get("outerLeftRearTirePressure").get("value")) * KPA_TO_PSI, 0)),
         int(round(float(status.get("TPMS").get("outerRightRearTirePressure").get("value")) * KPA_TO_PSI, 0)),
     ]
-    _LOGGER.info(f"Tire pressures are {tirePressures}")
+    logging.info(f"Tire pressures are {tirePressures}")
 
 
 def decode_odometer(status):
     global _MILES
     odometer = float(status.get("odometer").get("value"))
-    unit = "kms"
+    unit = "km"
     if _MILES:
         odometer = odometer * 0.6214
         unit = "miles"
-    _LOGGER.info(f"Odometer reads {odometer:.1f} {unit}")
+    logging.info(f"Odometer reads {odometer:.1f} {unit}")
 
 
 def decode_dte(status):
     global _MILES
     dte = float(status.get("elVehDTE").get("value"))
-    unit = "kms"
+    unit = "km"
     if _MILES:
         dte = dte * 0.6214
         unit = "miles"
-    _LOGGER.info(f"Estimated range is {dte:.0f} {unit}")
+    logging.info(f"Estimated range is {dte:.0f} {unit}")
 
 
 def decode_soc(status):
     soc = float(status.get("batteryFillLevel").get("value"))
-    _LOGGER.info(f"Battery is at {soc:.0f}% of capacity")
+    logging.info(f"Battery is at {soc:.0f}% of capacity")
 
 
 def decode_locked(status):
     locked = status.get("lockStatus").get("value")
-    _LOGGER.info(f"Car doors are {locked}")
+    logging.info(f"Car doors are '{locked}'")
 
 
 def decode_preconditioning(status):
     remoteStartStatus = status.get("remoteStartStatus").get("value")
     if remoteStartStatus == 0:
-        _LOGGER.info(f"Vehicle is not preconditioning")
+        logging.info(f"Vehicle is not preconditioning")
     else:
         remoteStartDuration = int(status.get("remoteStart").get("remoteStartDuration"))
         remoteStartTime = int(status.get("remoteStart").get("remoteStartTime"))
-        _LOGGER.info(f"Vehicle is preconditioning, time is {remoteStartTime} for duration {remoteStartDuration}")
+        logging.info(f"Vehicle is preconditioning, time is {remoteStartTime} for duration {remoteStartDuration}")
 
 
 def decode_location(status):
@@ -126,7 +125,7 @@ def decode_location(status):
     locationInfo = _GEOCLIENT.reverse((status.get("gps").get("latitude"), status.get("gps").get("longitude")))
     nearestLocation = locationInfo.get("results")
     atLocation = nearestLocation[0]
-    _LOGGER.info(f"Vehicle location is near {atLocation.get('formatted_address')}")
+    logging.info(f"Vehicle location is near {atLocation.get('formatted_address')}")
 
 
 def decode(previous, current):
@@ -140,11 +139,11 @@ def main():
     global _VEHICLECLIENT
 
     logfiles.create_application_log()
-    _LOGGER.info(f"Ford Connect test utility {version.get_version()}")
+    logging.info(f"Ford Connect test utility {version.get_version()}")
 
     config = read_config()
     if not config:
-        _LOGGER.error("Error processing YAML configuration - exiting")
+        logging.error("Error processing YAML configuration - exiting")
         return
 
     _VEHICLECLIENT = Vehicle(
@@ -183,7 +182,7 @@ def main():
             previousModified = datetime.strptime(previousStatus.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
             currentModified = datetime.strptime(currentStatus.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
             if currentModified > previousModified:
-                _LOGGER.info(f"Update detected at {currentModified}")
+                logging.info(f"Update detected at {currentModified}")
 
                 # Figure out what changed
                 decode(previous=previousStatus, current=currentStatus)
@@ -192,12 +191,12 @@ def main():
                 previousStatus = currentStatus
 
     except Exception as e:
-        _LOGGER.error(f"Unexpected exception: {e}")
+        logging.error(f"Unexpected exception: {e}")
 
 
 if __name__ == "__main__":
     # make sure we can run multisma2
-    if sys.version_info[0] >= 3 and sys.version_info[1] >= 7:
+    if sys.version_info[0] >= 3 and sys.version_info[1] >= 8:
         main()
     else:
-        print("python 3.7 or better required")
+        print("python 3.8 or better required")
