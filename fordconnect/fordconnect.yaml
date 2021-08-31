@@ -10,3 +10,8 @@ fordconnect:
 # Geocodio for geocoding support
 geocodio:
   api_key: !secret geocodio_api_key
+
+# ABRP for SOC integration support
+abrp:
+  api_key: !secret abrp_api_key
+  token: !secret abrp_token

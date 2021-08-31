@@ -11,9 +11,13 @@ from readconfig import read_config
 
 from fordpass import Vehicle
 from geocodio import GeocodioClient
+from abrp import AbrpClient
 
-_GEOCLIENT = None
+
 _VEHICLECLIENT = None
+_GEOCLIENT = None
+_ABRPCLIENT = None
+
 _MILES = True
 
 
@@ -161,8 +165,7 @@ def decode(previous, current):
 def main():
     """Set up and start FordConnect."""
 
-    global _GEOCLIENT
-    global _VEHICLECLIENT
+    global _VEHICLECLIENT, _GEOCLIENT, _ABRPCLIENT
 
     logfiles.create_application_log()
     logging.info(f"Ford Connect test utility {version.get_version()}")
@@ -172,14 +175,15 @@ def main():
         logging.error("Error processing YAML configuration - exiting")
         return
 
+    _ABRPCLIENT = AbrpClient(config.abrp.api_key, config.abrp.token)
+    _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
     _VEHICLECLIENT = Vehicle(
         username=config.fordconnect.vehicle.username,
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
     currentStatus = _VEHICLECLIENT.status()
-
-    _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
+    _ABRPCLIENT.post(currentStatus)
 
     decode_lastupdate(status=currentStatus)
     decode_ignition(status=currentStatus)

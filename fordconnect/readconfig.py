@@ -136,6 +136,20 @@ def check_geocodio(config):
     return options
 
 
+def check_abrp(config):
+    options = {}
+    abrp_key = config.abrp
+    abrp_keys = ["api_key", "token"]
+    for key in abrp_keys:
+        if key not in abrp_key.keys():
+            logging.error(f"Missing required '{key}' option in 'abrp' settings")
+            return None
+
+    options["api_key"] = abrp_key.api_key
+    options["token"] = abrp_key.token
+    return options
+
+
 def read_config():
     try:
         yaml.FullLoader.add_constructor("!secret", secret_yaml)
@@ -144,7 +158,8 @@ def read_config():
 
         fordconnect_options = check_fordconnect(config)
         geocodio_options = check_geocodio(config)
-        if None in [fordconnect_options, geocodio_options]:
+        abrp_options = check_abrp(config)
+        if None in [fordconnect_options, geocodio_options, abrp_options]:
             return None
         return config
 

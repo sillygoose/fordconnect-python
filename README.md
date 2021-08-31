@@ -1,5 +1,5 @@
 # fordconnect
-Application to play around with the FordPass Connect API.
+Application to play around with the FordPass Connect API. Besides display the vehicle state, an option to send the SOC to ABRP is available.
 
 ## Installation
 Python 3.8 or better is required, you can then install the Python requirements for this application:
@@ -25,6 +25,8 @@ Run the application from the command line using Python 3.8 or later:
 Thanks for the following packages used to build this software:
 - clarkd/fordpass-python library
     - https://github.com/clarkd/fordpass-python
+- ABRP Telemetry API
+    - https://documenter.getpostman.com/view/7396339/SWTK5a8w?version=latest
 - YAML configuration file support
     - https://python-configuration.readthedocs.io
 
