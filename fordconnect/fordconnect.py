@@ -17,6 +17,22 @@ _VEHICLECLIENT = None
 _MILES = True
 
 
+def read_datetime(status, key):
+    return datetime.strptime(status.get(key), "%m-%d-%Y %H:%M:%S")
+
+
+def last_status_update(status):
+    return datetime.strptime(status.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
+
+
+def server_time(status):
+    return datetime.strptime(status.get("serverTime"), "%m-%d-%Y %H:%M:%S")
+
+
+def time_since_update(status):
+    return server_time(status) - last_status_update(status)
+
+
 # 'Fully open position'
 # 'Btwn 10 % and 60 % open'
 # 'Fully closed position'
@@ -51,16 +67,26 @@ def decode_doors(status):
         logging.info(f"All doors are closed")
 
 
+def decode_lastupdate(status):
+    logging.info(f"Last modified {last_status_update(status)}, time since update {time_since_update(status)}")
+
+
+# 'Off'
+# 'Run'
 def decode_ignition(status):
     ignitionStatus = status.get("ignitionStatus").get("value")
     logging.info(f"Ignition status is '{ignitionStatus}'")
 
 
+# 'NotReady'
+# 'ChargeTargetReached'
 def decode_charging(status):
     chargingStatus = status.get("chargingStatus").get("value")
     logging.info(f"Charging status is '{chargingStatus}'")
 
 
+# 0 - Not plugged in
+# 1 - Plugged in
 def decode_plug(status):
     plugStatus = status.get("plugStatus").get("value")
     plugState = "plugged in" if plugStatus else "not plugged in"
@@ -68,8 +94,8 @@ def decode_plug(status):
 
 
 def decode_tpms(status):
-    tirePressureStatus = "are good" if status.get("tirePressure").get("value") == "STATUS_GOOD" else "need checking"
-    logging.info(f"Tire pressures {tirePressureStatus}")
+    # tirePressureStatus = "are good" if status.get("tirePressure").get("value") == "STATUS_GOOD" else "need checking"
+    # logging.info(f"Tire pressures {tirePressureStatus}")
     KPA_TO_PSI = 0.1450377
     tirePressures = [
         int(round(float(status.get("TPMS").get("leftFrontTirePressure").get("value")) * KPA_TO_PSI, 0)),
@@ -155,8 +181,7 @@ def main():
 
     _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
 
-    decode_windows(status=currentStatus)
-    decode_doors(status=currentStatus)
+    decode_lastupdate(status=currentStatus)
     decode_ignition(status=currentStatus)
     decode_plug(status=currentStatus)
     decode_charging(status=currentStatus)
@@ -166,6 +191,8 @@ def main():
     decode_dte(status=currentStatus)
     decode_soc(status=currentStatus)
     decode_tpms(status=currentStatus)
+    decode_windows(status=currentStatus)
+    decode_doors(status=currentStatus)
     decode_location(status=currentStatus)
 
     previousStatus = currentStatus
@@ -179,8 +206,8 @@ def main():
             if passes > limit:
                 break
 
-            previousModified = datetime.strptime(previousStatus.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
-            currentModified = datetime.strptime(currentStatus.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
+            previousModified = last_status_update(previousStatus)
+            currentModified = last_status_update(currentStatus)
             if currentModified > previousModified:
                 logging.info(f"Update detected at {currentModified}")
 
