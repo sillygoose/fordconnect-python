@@ -258,9 +258,8 @@ def differences(previous, current):
 
     if len(diffs) > 0:
         _LOGGER.info(f"{diffs}")
-
-    if diffs.get("latitude") or diffs.get("longitude"):
-        decode_location(current)
+        if diffs.get("latitude") or diffs.get("longitude"):
+            decode_location(current)
 
     return diffs
 
