@@ -1,6 +1,8 @@
 # fordconnect
 Application to play around with the FordPass Connect API. Besides display the vehicle state, an option to send the SOC to ABRP is available.
 
+The FordPass Connect API is very limited, an update is sent when the car is turned on, then about a minute later, and then when the car is turned off.  You can get more updates when events happen like a TPMS warning but the easiest to trigger is removing the seat belt.Frankly there needs to be a easier, lightweight way for vehicle data to be accessed along with more useful datapoints.
+
 ## Installation
 Python 3.8 or better is required, you can then install the Python requirements for this application:
 ```
