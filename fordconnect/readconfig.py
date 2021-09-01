@@ -20,6 +20,7 @@ SECRET_YAML = "secrets.yaml"
 JSON_TYPE = Union[List, Dict, str]  # pylint: disable=invalid-name
 DICT_T = TypeVar("DICT_T", bound=Dict)  # pylint: disable=invalid-name
 __SECRET_CACHE: Dict[str, JSON_TYPE] = {}
+_LOGGER = logging.getLogger("fordconnect")
 
 
 class ConfigError(Exception):
@@ -43,7 +44,7 @@ def load_yaml(fname: str) -> JSON_TYPE:
         with open(fname, encoding="utf-8") as conf_file:
             return parse_yaml(conf_file)
     except UnicodeDecodeError as exc:
-        logging.error("Unable to read file %s: %s", fname, exc)
+        _LOGGER.error("Unable to read file %s: %s", fname, exc)
         raise ConfigError(exc) from exc
 
 
@@ -54,7 +55,7 @@ def parse_yaml(content: Union[str, TextIO]) -> JSON_TYPE:
         # We convert that to an empty dict
         return yaml.load(content, Loader=FullLineLoader) or OrderedDict()
     except yaml.YAMLError as exc:
-        logging.error(str(exc))
+        _LOGGER.error(str(exc))
         raise ConfigError(exc) from exc
 
 
@@ -80,7 +81,7 @@ def _load_secret_yaml(secret_path: str) -> JSON_TYPE:
 def secret_yaml(loader: FullLineLoader, node: yaml.nodes.Node) -> JSON_TYPE:
     """Load secrets and embed it into the configuration YAML."""
     if os.path.basename(loader.name) == SECRET_YAML:
-        logging.error("secrets.yaml: attempt to load secret from within secrets file")
+        _LOGGER.error("secrets.yaml: attempt to load secret from within secrets file")
         raise ConfigError("secrets.yaml: attempt to load secret from within secrets file")
 
     secret_path = os.path.dirname(loader.name)
@@ -90,7 +91,7 @@ def secret_yaml(loader: FullLineLoader, node: yaml.nodes.Node) -> JSON_TYPE:
     while True:
         secrets = _load_secret_yaml(secret_path)
         if node.value in secrets:
-            logging.debug(
+            _LOGGER.debug(
                 "Secret %s retrieved from secrets.yaml in folder %s",
                 node.value,
                 secret_path,
@@ -108,14 +109,14 @@ def check_fordconnect(config):
     options = {}
     fordconnect_key = config.fordconnect
     if not fordconnect_key or "vehicle" not in fordconnect_key.keys():
-        logging.warning("Expected option 'vehicle' in the 'fordconnect' settings")
+        _LOGGER.warning("Expected option 'vehicle' in the 'fordconnect' settings")
         return None
 
     vehicle_key = fordconnect_key.vehicle
     vehicle_keys = ["name", "vin", "username", "password"]
     for key in vehicle_keys:
         if key not in vehicle_key.keys():
-            logging.error(f"Missing required '{key}' option in 'vehicle' settings")
+            _LOGGER.error(f"Missing required '{key}' option in 'vehicle' settings")
             return None
 
     options["name"] = vehicle_key.name
@@ -129,7 +130,7 @@ def check_geocodio(config):
     options = {}
     geocodio_key = config.geocodio
     if not geocodio_key or "api_key" not in geocodio_key.keys():
-        logging.warning("Expected option 'api_key' in the 'geocodio' settings")
+        _LOGGER.warning("Expected option 'api_key' in the 'geocodio' settings")
         return None
 
     options["api_key"] = geocodio_key.api_key
@@ -142,7 +143,7 @@ def check_abrp(config):
     abrp_keys = ["api_key", "token"]
     for key in abrp_keys:
         if key not in abrp_key.keys():
-            logging.error(f"Missing required '{key}' option in 'abrp' settings")
+            _LOGGER.error(f"Missing required '{key}' option in 'abrp' settings")
             return None
 
     options["api_key"] = abrp_key.api_key

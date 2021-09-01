@@ -7,6 +7,9 @@ import urllib
 import json
 
 
+_LOGGER = logging.getLogger("fordconnect")
+
+
 class AbrpClient:
     """Class to encapsulate the ABRP Telemetry API."""
 
@@ -45,6 +48,7 @@ class AbrpClient:
             status = None
 
         if status.status_code == 200:
-            logging.info(f"ABRP telemetry update was successful")
+            # _LOGGER.info(f"ABRP telemetry update was successful")
+            pass
         else:
-            logging.info(f"ABRP telemetry update failed: {status.status_code}")
+            _LOGGER.info(f"ABRP telemetry update failed: {status.status_code}")

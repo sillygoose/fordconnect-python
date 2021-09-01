@@ -1,9 +1,10 @@
-"""Code to interface with the Ford Connect API as used in the FordPass app"""
+"""Code to interface with the FordPass Connect API as used in the FordPass app"""
 
 import logging
 import sys
 import time
 from datetime import datetime
+import requests
 
 import version
 import logfiles
@@ -19,6 +20,10 @@ _GEOCLIENT = None
 _ABRPCLIENT = None
 
 _MILES = True
+_EXTENDED = True
+_PSI = True
+
+_LOGGER = logging.getLogger("fordconnect")
 
 
 def read_datetime(status, key):
@@ -48,13 +53,12 @@ def decode_windows(status):
         status.get("windowPosition").get("rearPassWindowPos").get("value"),
     ]
     if "Btwn 10 % and 60 % open" in windowPosition or "Fully open position" in windowPosition:
-        logging.info(f"One or more windows are open")
+        _LOGGER.info(f"One or more windows are open")
     else:
-        logging.info(f"All windows are closed")
+        _LOGGER.info(f"All windows are closed")
 
 
-# 'Closed'
-# 'Ajar'
+# 'Closed', 'Ajar'
 def decode_doors(status):
     doorStatus = [
         status.get("doorStatus").get("rightRearDoor").get("value"),
@@ -66,27 +70,25 @@ def decode_doors(status):
         status.get("doorStatus").get("innerTailgateDoor").get("value"),
     ]
     if "Ajar" in doorStatus:
-        logging.info(f"Door status is {doorStatus}")
+        _LOGGER.info(f"Door status is {doorStatus}")
     else:
-        logging.info(f"All doors are closed")
+        _LOGGER.info(f"All doors are closed")
 
 
 def decode_lastupdate(status):
-    logging.info(f"Last modified {last_status_update(status)}, time since update {time_since_update(status)}")
+    _LOGGER.info(f"Last modified {last_status_update(status)}, time since update {time_since_update(status)}")
 
 
-# 'Off'
-# 'Run'
+# 'Off', 'Start', 'Run'
 def decode_ignition(status):
     ignitionStatus = status.get("ignitionStatus").get("value")
-    logging.info(f"Ignition status is '{ignitionStatus}'")
+    _LOGGER.info(f"Ignition status is '{ignitionStatus}'")
 
 
-# 'NotReady'
-# 'ChargeTargetReached'
+# 'NotReady', 'ChargeTargetReached'
 def decode_charging(status):
     chargingStatus = status.get("chargingStatus").get("value")
-    logging.info(f"Charging status is '{chargingStatus}'")
+    _LOGGER.info(f"Charging status is '{chargingStatus}'")
 
 
 # 0 - Not plugged in
@@ -94,20 +96,21 @@ def decode_charging(status):
 def decode_plug(status):
     plugStatus = status.get("plugStatus").get("value")
     plugState = "plugged in" if plugStatus else "not plugged in"
-    logging.info(f"Plug status is {plugState}")
+    _LOGGER.info(f"Plug status is {plugState}")
 
 
 def decode_tpms(status):
     # tirePressureStatus = "are good" if status.get("tirePressure").get("value") == "STATUS_GOOD" else "need checking"
-    # logging.info(f"Tire pressures {tirePressureStatus}")
-    KPA_TO_PSI = 0.1450377
+    # _LOGGER.info(f"Tire pressures {tirePressureStatus}")
+    global _PSI
+    adjustKPA = 0.1450377 if _PSI else 1.0
     tirePressures = [
-        int(round(float(status.get("TPMS").get("leftFrontTirePressure").get("value")) * KPA_TO_PSI, 0)),
-        int(round(float(status.get("TPMS").get("rightFrontTirePressure").get("value")) * KPA_TO_PSI, 0)),
-        int(round(float(status.get("TPMS").get("outerLeftRearTirePressure").get("value")) * KPA_TO_PSI, 0)),
-        int(round(float(status.get("TPMS").get("outerRightRearTirePressure").get("value")) * KPA_TO_PSI, 0)),
+        int(round(float(status.get("TPMS").get("leftFrontTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(status.get("TPMS").get("rightFrontTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(status.get("TPMS").get("outerLeftRearTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(status.get("TPMS").get("outerRightRearTirePressure").get("value")) * adjustKPA, 0)),
     ]
-    logging.info(f"Tire pressures are {tirePressures}")
+    _LOGGER.info(f"Tire pressures are {tirePressures}")
 
 
 def decode_odometer(status):
@@ -117,7 +120,7 @@ def decode_odometer(status):
     if _MILES:
         odometer = odometer * 0.6214
         unit = "miles"
-    logging.info(f"Odometer reads {odometer:.1f} {unit}")
+    _LOGGER.info(f"Odometer reads {odometer:.1f} {unit}")
 
 
 def decode_dte(status):
@@ -127,27 +130,34 @@ def decode_dte(status):
     if _MILES:
         dte = dte * 0.6214
         unit = "miles"
-    logging.info(f"Estimated range is {dte:.0f} {unit}")
+    _LOGGER.info(f"Estimated range is {dte:.0f} {unit}")
 
 
 def decode_soc(status):
     soc = float(status.get("batteryFillLevel").get("value"))
-    logging.info(f"Battery is at {soc:.0f}% of capacity")
+    _LOGGER.info(f"Battery is at {soc:.0f}% of capacity")
 
 
+# 'LOCKED', 'UNLOCKED'
 def decode_locked(status):
     locked = status.get("lockStatus").get("value")
-    logging.info(f"Car doors are '{locked}'")
+    _LOGGER.info(f"Car doors are '{locked}'")
+
+
+# 'NOTSET', 'SET', 'ACTIVE'
+def decode_alarm(status):
+    alarm = status.get("alarm").get("value")
+    _LOGGER.info(f"Alarm is '{alarm}'")
 
 
 def decode_preconditioning(status):
     remoteStartStatus = status.get("remoteStartStatus").get("value")
     if remoteStartStatus == 0:
-        logging.info(f"Vehicle is not preconditioning")
+        _LOGGER.info(f"Vehicle is not preconditioning")
     else:
         remoteStartDuration = int(status.get("remoteStart").get("remoteStartDuration"))
         remoteStartTime = int(status.get("remoteStart").get("remoteStartTime"))
-        logging.info(f"Vehicle is preconditioning, time is {remoteStartTime} for duration {remoteStartDuration}")
+        _LOGGER.info(f"Vehicle is preconditioning, time is {remoteStartTime} for duration {remoteStartDuration}")
 
 
 def decode_location(status):
@@ -155,24 +165,153 @@ def decode_location(status):
     locationInfo = _GEOCLIENT.reverse((status.get("gps").get("latitude"), status.get("gps").get("longitude")))
     nearestLocation = locationInfo.get("results")
     atLocation = nearestLocation[0]
-    logging.info(f"Vehicle location is near {atLocation.get('formatted_address')}")
+    _LOGGER.info(f"Vehicle location is near {atLocation.get('formatted_address')}")
 
 
-def decode(previous, current):
-    print(f"{current}")
+def differences(previous, current):
+    global _PSI
+    diffs = {}
+    # ignitionStatus
+    if previous.get("ignitionStatus").get("value") != current.get("ignitionStatus").get("value"):
+        diffs["ignitionStatus"] = current.get("ignitionStatus").get("value")
+    # odometer
+    if previous.get("odometer").get("value") != current.get("odometer").get("value"):
+        diffs["odometer"] = current.get("odometer").get("value")
+    # gps
+    if previous.get("gps").get("latitude") != current.get("gps").get("latitude"):
+        diffs["latitude"] = current.get("gps").get("latitude")
+        diffs["longitude"] = current.get("gps").get("longitude")
+    if previous.get("gps").get("longitude") != current.get("gps").get("longitude"):
+        diffs["latitude"] = current.get("gps").get("latitude")
+        diffs["longitude"] = current.get("gps").get("longitude")
+    # lockStatus
+    if previous.get("lockStatus").get("value") != current.get("lockStatus").get("value"):
+        diffs["lockStatus"] = current.get("lockStatus").get("value")
+    # alarm
+    if previous.get("alarm").get("value") != current.get("alarm").get("value"):
+        diffs["alarm"] = current.get("alarm").get("value")
+    # remoteStartStatus
+    if previous.get("remoteStartStatus").get("value") != current.get("remoteStartStatus").get("value"):
+        diffs["remoteStartStatus"] = current.get("remoteStartStatus").get("value")
+    # tirePressure
+    if previous.get("tirePressure").get("value") != current.get("tirePressure").get("value"):
+        diffs["tirePressure"] = current.get("tirePressure").get("value")
+    # TMPS
+    adjustKPA = 0.1450377 if _PSI else 1.0
+    oldTirePressures = [
+        int(round(float(previous.get("TPMS").get("leftFrontTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(previous.get("TPMS").get("rightFrontTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(previous.get("TPMS").get("outerLeftRearTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(previous.get("TPMS").get("outerRightRearTirePressure").get("value")) * adjustKPA, 0)),
+    ]
+    newTirePressures = [
+        int(round(float(current.get("TPMS").get("leftFrontTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(current.get("TPMS").get("rightFrontTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(current.get("TPMS").get("outerLeftRearTirePressure").get("value")) * adjustKPA, 0)),
+        int(round(float(current.get("TPMS").get("outerRightRearTirePressure").get("value")) * adjustKPA, 0)),
+    ]
+    for i in range(len(oldTirePressures)):
+        if oldTirePressures[i] != newTirePressures[i]:
+            diffs["TPMS"] = newTirePressures
+            break
+    # batteryFillLevel
+    if previous.get("batteryFillLevel").get("value") != current.get("batteryFillLevel").get("value"):
+        diffs["batteryFillLevel"] = current.get("batteryFillLevel").get("value")
+    # elVehDTE
+    if round(float(previous.get("elVehDTE").get("value")), 6) != round(float(current.get("elVehDTE").get("value")), 6):
+        diffs["elVehDTE"] = current.get("elVehDTE").get("value")
+    # chargingStatus
+    if previous.get("chargingStatus").get("value") != current.get("chargingStatus").get("value"):
+        diffs["chargingStatus"] = current.get("chargingStatus").get("value")
+    # plugStatus
+    if previous.get("plugStatus").get("value") != current.get("plugStatus").get("value"):
+        diffs["plugStatus"] = current.get("plugStatus").get("value")
+    # doorStatus
+    if previous.get("doorStatus").get("rightRearDoor").get("value") != current.get("doorStatus").get(
+        "rightRearDoor"
+    ).get("value"):
+        diffs["rightRearDoor"] = current.get("doorStatus").get("rightRearDoor").get("value")
+    if previous.get("doorStatus").get("leftRearDoor").get("value") != current.get("doorStatus").get("leftRearDoor").get(
+        "value"
+    ):
+        diffs["leftRearDoor"] = current.get("doorStatus").get("leftRearDoor").get("value")
+    if previous.get("doorStatus").get("driverDoor").get("value") != current.get("doorStatus").get("driverDoor").get(
+        "value"
+    ):
+        diffs["driverDoor"] = current.get("doorStatus").get("driverDoor").get("value")
+    if previous.get("doorStatus").get("passengerDoor").get("value") != current.get("doorStatus").get(
+        "passengerDoor"
+    ).get("value"):
+        diffs["passengerDoor"] = current.get("doorStatus").get("passengerDoor").get("value")
+    if previous.get("doorStatus").get("hoodDoor").get("value") != current.get("doorStatus").get("hoodDoor").get(
+        "value"
+    ):
+        diffs["hoodDoor"] = current.get("doorStatus").get("hoodDoor").get("value")
+    if previous.get("doorStatus").get("tailgateDoor").get("value") != current.get("doorStatus").get("tailgateDoor").get(
+        "value"
+    ):
+        diffs["tailgateDoor"] = current.get("doorStatus").get("tailgateDoor").get("value")
+    if previous.get("doorStatus").get("innerTailgateDoor").get("value") != current.get("doorStatus").get(
+        "innerTailgateDoor"
+    ).get("value"):
+        diffs["innerTailgateDoor"] = current.get("doorStatus").get("innerTailgateDoor").get("value")
+
+    if len(diffs) > 0:
+        _LOGGER.info(f"{diffs}")
+
+    if diffs.get("latitude") or diffs.get("longitude"):
+        decode_location(current)
+
+    return diffs
+
+
+def get_vehicle_status():
+    global _VEHICLECLIENT
+    status = None
+    tries = 3
+    while tries > 0:
+        try:
+            status = _VEHICLECLIENT.status()
+            break
+        except requests.ConnectionError:
+            tries -= 1
+            # _LOGGER.info(f"request.get() timed out, {tries} remaining")
+            if tries == 0:
+                _LOGGER.error(f"FordPass Connect API unavailable")
+                raise
+            continue
+        except Exception as e:
+            _LOGGER.error(f"Unexpected exception: {e}")
+            break
+    return status
+
+
+def process_trip(start, end):
+    global _MILES, _EXTENDED
+    unit = "km"
+    percentUsed = float(start.get("batteryFillLevel").get("value")) - float(end.get("batteryFillLevel").get("value"))
+    batteryUsed = percentUsed * 0.01
+    kwhUsed = batteryUsed * 88.0 if _EXTENDED else 68.0
+    distance = end.get("odometer").get("value") - start.get("odometer").get("value")
+    distpkwh = 99.9 if kwhUsed <= 0.0 else distance / kwhUsed
+    if _MILES:
+        distance = distance * 0.6214
+        distpkwh = 99.9 if kwhUsed <= 0.0 else distance / kwhUsed
+        unit = "miles"
+    _LOGGER.info(f"Trip went for {distance:.2f} {unit} using {kwhUsed:.2f} kWh, {distpkwh:.2f} {unit} per kWh")
 
 
 def main():
-    """Set up and start FordConnect."""
+    """Set up and start FordPass Connect."""
 
     global _VEHICLECLIENT, _GEOCLIENT, _ABRPCLIENT
 
-    logfiles.create_application_log()
-    logging.info(f"Ford Connect test utility {version.get_version()}")
+    logfiles.create_application_log(_LOGGER)
+    _LOGGER.info(f"Ford Connect test utility {version.get_version()}")
 
     config = read_config()
     if not config:
-        logging.error("Error processing YAML configuration - exiting")
+        _LOGGER.error("Error processing YAML configuration - exiting")
         return
 
     _ABRPCLIENT = AbrpClient(config.abrp.api_key, config.abrp.token)
@@ -182,7 +321,7 @@ def main():
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
-    currentStatus = _VEHICLECLIENT.status()
+    currentStatus = get_vehicle_status()
     _ABRPCLIENT.post(currentStatus)
 
     decode_lastupdate(status=currentStatus)
@@ -191,38 +330,54 @@ def main():
     decode_charging(status=currentStatus)
     decode_preconditioning(status=currentStatus)
     decode_odometer(status=currentStatus)
-    decode_locked(status=currentStatus)
     decode_dte(status=currentStatus)
     decode_soc(status=currentStatus)
     decode_tpms(status=currentStatus)
-    decode_windows(status=currentStatus)
     decode_doors(status=currentStatus)
+    decode_locked(status=currentStatus)
+    decode_windows(status=currentStatus)
+    decode_alarm(status=currentStatus)
     decode_location(status=currentStatus)
 
+    tripStarted = None
+    tripEnded = None
     previousStatus = currentStatus
     try:
-        limit = 10
+        limit = 1000
         passes = 0
         while True:
-            time.sleep(5)
-            currentStatus = _VEHICLECLIENT.status()
+            time.sleep(10)
+
             passes += 1
             if passes > limit:
                 break
 
+            try:
+                currentStatus = get_vehicle_status()
+            except requests.ConnectionError:
+                continue
+
             previousModified = last_status_update(previousStatus)
             currentModified = last_status_update(currentStatus)
             if currentModified > previousModified:
-                logging.info(f"Update detected at {currentModified}")
+                _ABRPCLIENT.post(currentStatus)
+                diffs = differences(previous=previousStatus, current=currentStatus)
 
-                # Figure out what changed
-                decode(previous=previousStatus, current=currentStatus)
+                if not tripStarted and diffs.get("ignitionStatus") and diffs.get("ignitionStatus") == "Run":
+                    tripStarted = currentStatus
+                elif not tripStarted and diffs.get("ignitionStatus") and diffs.get("ignitionStatus") == "Start":
+                    tripStarted = currentStatus
+                elif diffs.get("ignitionStatus") and diffs.get("ignitionStatus") == "Off":
+                    tripEnded = currentStatus
+                if tripStarted and tripEnded:
+                    process_trip(tripStarted, tripEnded)
+                    tripStarted = tripEnded
+                    tripEnded = None
 
-                # Update the previous status
                 previousStatus = currentStatus
 
     except Exception as e:
-        logging.error(f"Unexpected exception: {e}")
+        _LOGGER.error(f"Unexpected exception: {e}")
 
 
 if __name__ == "__main__":

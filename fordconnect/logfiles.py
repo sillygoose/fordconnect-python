@@ -10,7 +10,7 @@ _LOG_FILE = "log/fordconnect"
 _LOG_FORMAT = "[%(asctime)s] [%(module)s] [%(levelname)s] %(message)s"
 
 
-def create_application_log():
+def create_application_log(app_logger):
     """Create the application log."""
     now = datetime.now()
     filename = os.path.expanduser(_LOG_FILE + "_" + now.strftime("%Y-%m-%d") + ".log")
@@ -31,9 +31,8 @@ def create_application_log():
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
-    logger = logging.getLogger()
-    logger.addHandler(console_handler)
-    logger.setLevel(logging.INFO)
+    app_logger.addHandler(console_handler)
+    # ### app_logger.setLevel(logging.INFO)
 
     # First entry
-    logging.info("Created application log %s", filename)
+    app_logger.info("Created application log %s", filename)
