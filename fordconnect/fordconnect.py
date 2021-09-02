@@ -342,7 +342,7 @@ def main():
     tripEnded = None
     previousStatus = currentStatus
     try:
-        limit = 1000
+        limit = 4000
         passes = 0
         while True:
             time.sleep(10)
