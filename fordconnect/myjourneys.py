@@ -1,5 +1,10 @@
 """Code to interface with the FordPass Connect API as used in the FordPass app"""
-# POST https://api.mps.ford.com/api//cevs/v2/chargelogs/retrieve
+# GET https://api.mps.ford.com/api/journey-info/v1/journeys?endDate=sec_ts&clientVersion=iOS3.29.0&vins=MYVIN&countryCode=USA&startDate-sects
+# GET https://api.mps.ford.com/api/journey-info/v1/journeys?endDate=sec_ts&clientVersion=iOS3.29.0&vins=MYVIN&countryCode=USA&startDate-sects
+
+# Detailed journey info
+# GET https://api.mps.ford.com/api/journey-info/v1/journey/details/<journeyID>?clientVersion=iOS3.29.0&vin=<vin>
+
 
 import logging
 import sys
@@ -9,6 +14,9 @@ import version
 import logfiles
 from readconfig import read_config
 
+from datetime import timedelta
+from datetime import datetime
+
 from fordpass import Vehicle
 
 
@@ -17,13 +25,13 @@ _VEHICLECLIENT = None
 _LOGGER = logging.getLogger("fordconnect")
 
 
-def get_chargelogs():
+def get_journeys(start, end):
     global _VEHICLECLIENT
     status = None
     tries = 3
     while tries > 0:
         try:
-            status = _VEHICLECLIENT.chargelogs()
+            status = _VEHICLECLIENT.journeys(start=start, end=end)
             break
         except requests.ConnectionError:
             tries -= 1
@@ -44,7 +52,7 @@ def main():
     global _VEHICLECLIENT
 
     logfiles.create_application_log(_LOGGER)
-    _LOGGER.info(f"Ford Connect charge log utility {version.get_version()}")
+    _LOGGER.info(f"Ford Connect journey utility {version.get_version()}")
 
     config = read_config()
     if not config:
@@ -56,11 +64,15 @@ def main():
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
-    chargeLogs = get_chargelogs().get("chargeLogs")
-    _LOGGER.info(f"Charge logs:")
-    for chargeLog in chargeLogs:
+
+    week_ago = timedelta(weeks=1)
+    end_date = datetime.now()
+    start_date = end_date - week_ago
+    journeys = get_journeys(start=int(start_date.timestamp()), end=int(end_date.timestamp()))
+    valueKey = journeys.get("value")
+    for journey in valueKey:
         _LOGGER.info(
-            f"ID: {chargeLog.get('chargeId')}, Plug out time: {chargeLog.get('plugOutTime')}, Start Battery Level: {chargeLog.get('startBatteryLevel')}, End Battery Level: {chargeLog.get('endBatteryLevel')}, Location: {chargeLog.get('chargeLocation')}"
+            f"Journey {journey.get('journeyID')}: {journey.get('duration')}/{journey.get('distance')}/{journey.get('avgSpeed')}/{journey.get('start')}/{journey.get('end')}"
         )
 
 
