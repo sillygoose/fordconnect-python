@@ -283,7 +283,7 @@ def get_vehicle_status():
     return status
 
 
-def process_trip(start, end):
+def process_trip(start, end) -> None:
     global _MILES, _EXTENDED
     unit = "km"
     elapsedTime = (last_status_update(end) - last_status_update(start)).total_seconds() / 3600
@@ -304,7 +304,7 @@ def process_trip(start, end):
     )
 
 
-def main():
+def main() -> None:
     """Set up and start FordPass Connect."""
 
     global _VEHICLECLIENT, _GEOCLIENT, _ABRPCLIENT

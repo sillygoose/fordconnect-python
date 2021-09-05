@@ -23,14 +23,18 @@ Rename the `sample_secrets.yaml` file to `secrets.yaml` and edit to match your F
 ## Notes
 - Reported distance per kWh results are less accurate for short trips since Ford reports the state of charge (SOC) in 0.5 units and the distance is truncated (see the next note).
 - The odometer readings sent from the vehicle are in kilometerS with a tenth digit that is always zero.
+- New API calls for plug status and charging logs require a modified fordpass-python library
 
 
 ## Thanks
-Thanks for the following packages used to build this software:
+Thanks for the following packages used to build/develop this software:
 - clarkd/fordpass-python library
     - https://github.com/clarkd/fordpass-python
 - ABRP Telemetry API
     - https://documenter.getpostman.com/view/7396339/SWTK5a8w?version=latest
+- Geocodio
+    - https://www.geocod.io
 - YAML configuration file support
     - https://python-configuration.readthedocs.io
-
+- mitmproxy
+    - https://mitmproxy.org

@@ -2,8 +2,6 @@
 
 import logging
 import sys
-import time
-from datetime import datetime
 import requests
 
 import version
@@ -11,8 +9,6 @@ import logfiles
 from readconfig import read_config
 
 from fordpass import Vehicle
-from geocodio import GeocodioClient
-from abrp import AbrpClient
 
 
 _VEHICLECLIENT = None
@@ -47,7 +43,7 @@ def main():
     global _VEHICLECLIENT
 
     logfiles.create_application_log(_LOGGER)
-    _LOGGER.info(f"Ford Connect charge logutility {version.get_version()}")
+    _LOGGER.info(f"Ford Connect charge log utility {version.get_version()}")
 
     config = read_config()
     if not config:
@@ -59,8 +55,12 @@ def main():
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
-    chargeLogs = get_chargelogs()
-    pass
+    chargeLogs = get_chargelogs().get("chargeLogs")
+    _LOGGER.info(f"Charge logs:")
+    for chargeLog in chargeLogs:
+        _LOGGER.info(
+            f"ID: {chargeLog.get('chargeId')}, Plug out time: {chargeLog.get('plugOutTime')}, Start Battery Level: {chargeLog.get('startBatteryLevel')}, End Battery Level: {chargeLog.get('endBatteryLevel')}, Location: {chargeLog.get('chargeLocation')}"
+        )
 
 
 if __name__ == "__main__":

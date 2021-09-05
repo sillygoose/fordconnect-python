@@ -3,8 +3,6 @@
 
 import logging
 import sys
-import time
-from datetime import datetime
 import requests
 
 import version
@@ -12,8 +10,6 @@ import logfiles
 from readconfig import read_config
 
 from fordpass import Vehicle
-from geocodio import GeocodioClient
-from abrp import AbrpClient
 
 
 _VEHICLECLIENT = None
@@ -61,7 +57,7 @@ def main():
         vin=config.fordconnect.vehicle.vin,
     )
     plugStatus = get_plug_status()
-    pass
+    _LOGGER.info(f"Plug status: {plugStatus}")
 
 
 if __name__ == "__main__":
