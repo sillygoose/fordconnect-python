@@ -1,7 +1,10 @@
 # fordconnect
-Application to play around with the FordPass Connect API. Besides display the vehicle state, an option to send the SOC to ABRP is available.
+Application to play around with the FordPass Connect API.  Besides display the vehicle state, an option to send the SOC to ABRP is available.
 
-The FordPass Connect API is very limited, an update is sent when the car is turned on, then about a minute later, and then when the car is turned off.  You can get more updates when events happen like a TPMS warning but the easiest to trigger is removing the seat belt.Frankly there needs to be a easier, lightweight way for vehicle data to be accessed along with more useful datapoints.
+The FordPass Connect API is very limited, an update is sent when the car is turned on, then about a minute later, and then when the car is turned off.  You can get more updates when events happen like a TPMS warning.  Updates also occur while charging and there may other events that I have not yet encountered.
+
+Frankly there needs to be a easier, lightweight way for vehicle data to be accessed along with more useful datapoints.
+
 
 ## Installation
 Python 3.8 or better is required, you can then install the Python requirements for this application:
@@ -16,12 +19,11 @@ The `fordconnect.yaml` file is read to learn the VIN, username, and password nee
 
 Rename the `sample_secrets.yaml` file to `secrets.yaml` and edit to match your Ford COnnect VIN and login (if you don't wish to use secrets then edit `fordconnect.yaml` to remove the `!secret` references).  The `secrets.yaml` file is tagged in the `.gitignore` file and will not be included in the repository but if you wish you can put `secrets.yaml` in any parent directory as `fordconnect` will start in the current directory and look in each parent directory up to your home directory for it (or just the current directory if you are not running in a user profile).
 
-Run the application from the command line using Python 3.8 or later:
 
-```
-    cd fordconnect
-    python3 fordconnect.py
-```
+## Notes
+- Reported distance per kWh results are less accurate for short trips since Ford reports the state of charge (SOC) in 0.5 units and the distance is truncated (see the next note).
+- The odometer readings sent from the vehicle are in kilometerS with a tenth digit that is always zero.
+
 
 ## Thanks
 Thanks for the following packages used to build this software:

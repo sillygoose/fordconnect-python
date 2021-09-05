@@ -26,10 +26,6 @@ _PSI = True
 _LOGGER = logging.getLogger("fordconnect")
 
 
-def read_datetime(status, key):
-    return datetime.strptime(status.get(key), "%m-%d-%Y %H:%M:%S")
-
-
 def last_status_update(status):
     return datetime.strptime(status.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
 
@@ -85,14 +81,13 @@ def decode_ignition(status):
     _LOGGER.info(f"Ignition status is '{ignitionStatus}'")
 
 
-# 'NotReady', 'ChargeTargetReached'
+# 'NotReady', 'ChargingAC', 'ChargeTargetReached'
 def decode_charging(status):
     chargingStatus = status.get("chargingStatus").get("value")
     _LOGGER.info(f"Charging status is '{chargingStatus}'")
 
 
-# 0 - Not plugged in
-# 1 - Plugged in
+# 0 - Not plugged in, 1 - Plugged in
 def decode_plug(status):
     plugStatus = status.get("plugStatus").get("value")
     plugState = "plugged in" if plugStatus else "not plugged in"
@@ -171,6 +166,9 @@ def decode_location(status):
 def differences(previous, current):
     global _PSI
     diffs = {}
+
+    # log modified times
+    diffs["lastModifiedDate"] = previous.get("lastModifiedDate") + "/" + current.get("lastModifiedDate")
     # ignitionStatus
     if previous.get("ignitionStatus").get("value") != current.get("ignitionStatus").get("value"):
         diffs["ignitionStatus"] = current.get("ignitionStatus").get("value")
@@ -219,7 +217,7 @@ def differences(previous, current):
         diffs["batteryFillLevel"] = current.get("batteryFillLevel").get("value")
     # elVehDTE
     if round(float(previous.get("elVehDTE").get("value")), 6) != round(float(current.get("elVehDTE").get("value")), 6):
-        diffs["elVehDTE"] = current.get("elVehDTE").get("value")
+        diffs["elVehDTE"] = round(current.get("elVehDTE").get("value"), 1)
     # chargingStatus
     if previous.get("chargingStatus").get("value") != current.get("chargingStatus").get("value"):
         diffs["chargingStatus"] = current.get("chargingStatus").get("value")
@@ -288,16 +286,22 @@ def get_vehicle_status():
 def process_trip(start, end):
     global _MILES, _EXTENDED
     unit = "km"
+    elapsedTime = (last_status_update(end) - last_status_update(start)).total_seconds() / 3600
     percentUsed = float(start.get("batteryFillLevel").get("value")) - float(end.get("batteryFillLevel").get("value"))
     batteryUsed = percentUsed * 0.01
     kwhUsed = batteryUsed * 88.0 if _EXTENDED else 68.0
     distance = end.get("odometer").get("value") - start.get("odometer").get("value")
     distpkwh = 99.9 if kwhUsed <= 0.0 else distance / kwhUsed
+    averageSpeed = distance / elapsedTime
     if _MILES:
         distance = distance * 0.6214
         distpkwh = 99.9 if kwhUsed <= 0.0 else distance / kwhUsed
+        averageSpeed = distance / elapsedTime
         unit = "miles"
-    _LOGGER.info(f"Trip went for {distance:.2f} {unit} using {kwhUsed:.2f} kWh, {distpkwh:.2f} {unit} per kWh")
+    # ### _LOGGER.info(f"start/end times: {start.get('lastModifiedDate')}/{end.get('lastModifiedDate')}")
+    _LOGGER.info(
+        f"Trip took {elapsedTime:.2f} hours, over {distance:.2f} {unit} using {kwhUsed:.2f} kWh, {distpkwh:.2f} {unit} per kWh, {averageSpeed:.1f} {unit} per hour"
+    )
 
 
 def main():
@@ -345,7 +349,7 @@ def main():
         limit = 4000
         passes = 0
         while True:
-            time.sleep(10)
+            time.sleep(30)
 
             passes += 1
             if passes > limit:
@@ -369,8 +373,8 @@ def main():
                 elif diffs.get("ignitionStatus") and diffs.get("ignitionStatus") == "Off":
                     tripEnded = currentStatus
                 if tripStarted and tripEnded:
-                    process_trip(tripStarted, tripEnded)
-                    tripStarted = tripEnded
+                    process_trip(start=tripStarted, end=tripEnded)
+                    tripStarted = None
                     tripEnded = None
 
                 previousStatus = currentStatus
@@ -380,7 +384,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # make sure we can run multisma2
+    # make sure we can run this
     if sys.version_info[0] >= 3 and sys.version_info[1] >= 8:
         main()
     else:
