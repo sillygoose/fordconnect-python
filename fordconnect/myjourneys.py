@@ -18,15 +18,21 @@ from datetime import timedelta
 from datetime import datetime
 
 from fordpass import Vehicle
+from geocodio import GeocodioClient
 
 
 _VEHICLECLIENT = None
+_GEOCLIENT = None
 
 _LOGGER = logging.getLogger("fordconnect")
 
+_MILES = True
+
 
 def get_journeys(start, end):
+
     global _VEHICLECLIENT
+
     status = None
     tries = 3
     while tries > 0:
@@ -49,7 +55,7 @@ def get_journeys(start, end):
 def main():
     """Set up and start FordPass Connect."""
 
-    global _VEHICLECLIENT
+    global _VEHICLECLIENT, _GEOCLIENT, _MILES
 
     logfiles.create_application_log(_LOGGER)
     _LOGGER.info(f"Ford Connect journey utility {version.get_version()}")
@@ -64,16 +70,69 @@ def main():
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
+    _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
 
     week_ago = timedelta(weeks=1)
     end_date = datetime.now()
     start_date = end_date - week_ago
     journeys = get_journeys(start=int(start_date.timestamp()), end=int(end_date.timestamp()))
-    valueKey = journeys.get("value")
-    for journey in valueKey:
+    for journey in journeys.get("value"):
+        _LOGGER.info(f"Journey {journey.get('journeyID')}")
+
+        startingAt = journey.get("start")
+        endingAt = journey.get("end")
+
+        startTime = datetime.fromtimestamp(startingAt.get("timestamp"))
+        endTime = datetime.fromtimestamp(endingAt.get("timestamp"))
+        duration = endTime - startTime
+        hours = duration.seconds // 3600
+        minutes = (duration.seconds // 60) % 60
         _LOGGER.info(
-            f"Journey {journey.get('journeyID')}: {journey.get('duration')}/{journey.get('distance')}/{journey.get('avgSpeed')}/{journey.get('start')}/{journey.get('end')}"
+            f"From {startTime.date()} {startTime.time()} to {endTime.date()} {endTime.time()}, {hours} hours, {minutes} minutes"
         )
+
+        distance = journey.get("distance") / 1000
+        unit = "km"
+        if _MILES:
+            distance = distance * 0.6214
+            unit = "miles"
+        _LOGGER.info(f"Distance {distance:.2f} {unit}")
+
+        avgSpeed = 3600 / 1000 * journey.get("avgSpeed")
+        unit = "kph"
+        if _MILES:
+            avgSpeed = avgSpeed * 0.6214
+            unit = "mph"
+        _LOGGER.info(f"Average Speed {avgSpeed:.2f} {unit}")
+
+        locationInfo = _GEOCLIENT.reverse((startingAt.get("latitude"), startingAt.get("longitude")))
+        nearestLocation = locationInfo.get("results")
+        startingLocation = nearestLocation[0]
+
+        locationInfo = _GEOCLIENT.reverse((endingAt.get("latitude"), endingAt.get("longitude")))
+        nearestLocation = locationInfo.get("results")
+        endingLocation = nearestLocation[0]
+
+        _LOGGER.info(f"From {startingLocation.get('formatted_address')} to {endingLocation.get('formatted_address')}")
+        for location in journey.get("locations"):
+            locationTime = datetime.fromtimestamp(location.get("timestamp"))
+
+            speed = 3600 / 1000 * location.get("speed")
+            unit = "kph"
+            if _MILES:
+                speed = speed * 0.6214
+                unit = "mph"
+
+            locationInfo = _GEOCLIENT.reverse((location.get("latitude"), location.get("longitude")))
+            nearestLocation = locationInfo.get("results")
+            spotLocation = nearestLocation[0]
+
+            _LOGGER.info(
+                f"{locationTime.date()} {locationTime.time()}, speed {speed:.2f} {unit}, {spotLocation.get('formatted_address')}"
+            )
+            pass
+
+        pass
 
 
 if __name__ == "__main__":
