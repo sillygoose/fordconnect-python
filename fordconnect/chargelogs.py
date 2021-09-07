@@ -23,7 +23,10 @@ def fordtime_to_datetime(fordTimeString):
     """Convert Ford UTC time string to local datetime object"""
     from_zone = tz.tzutc()
     to_zone = tz.tzlocal()
-    utc_dt = datetime.strptime(fordTimeString, "%m-%d-%Y %H:%M:%S.%f")
+    try:
+        utc_dt = datetime.strptime(fordTimeString, "%m-%d-%Y %H:%M:%S.%f")
+    except:
+        utc_dt = datetime.strptime(fordTimeString, "%m-%d-%Y %H:%M:%S")
     utc = utc_dt.replace(tzinfo=from_zone)
     return utc.astimezone(to_zone)
 
@@ -53,6 +56,8 @@ def main():
     """Set up and start FordPass Connect."""
 
     global _VEHICLECLIENT
+
+    test = fordtime_to_datetime("09-06-2021 16:43:41.123")
 
     logfiles.create_application_log(_LOGGER)
     _LOGGER.info(f"Ford Connect charge log utility {version.get_version()}")
