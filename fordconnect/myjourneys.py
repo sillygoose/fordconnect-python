@@ -113,15 +113,13 @@ def display_journey_details(journey):
     endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
     deltaElevation = endingElevation - startingElevation
 
-    # events = details.get("value").get("events")
-
     startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
     endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
 
     _LOGGER.info(f"")
-    _LOGGER.info(f"Journey details for {journeyID}")
+    _LOGGER.info(f"Detailed Journey view for {journeyID}")
     _LOGGER.info(
-        f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)} on {journeyDate.strftime('%d-%m-%y %H:%M')}"
+        f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)} on {journeyDate.strftime('%m-%d-%y %H:%M')}"
     )
 
     _LOGGER.info(
@@ -132,13 +130,24 @@ def display_journey_details(journey):
     )
 
     locations = details.get("value").get("locations")
-    _LOGGER.info(f"{len(locations)} locations logged")
-    for location in locations:
-        _LOGGER.info(
-            f"Location: ({location.get('latitude'):.5f}, {location.get('longitude'):.5f}), "
-            f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
-            f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}, "
-        )
+    if len(locations):
+        _LOGGER.info(f"{len(locations)} locations logged")
+        for location in locations:
+            _LOGGER.info(
+                f"Location: ({location.get('latitude'):.3f}, {location.get('longitude'):.3f}), "
+                f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
+                f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}"
+            )
+
+    events = details.get("value").get("events")
+    if len(events):
+        _LOGGER.info(f"{len(events)} events logged")
+        for event in events:
+            _LOGGER.info(
+                f"Location: ({event.get('latitude'):.3f}, {event.get('longitude'):.3f}), "
+                f"Time: {datetime.fromtimestamp(event.get('timestamp')).strftime('%H:%M:%S')}, "
+                f"Description: {event.get('description')}"
+            )
 
 
 def display_journey(journey):
@@ -162,9 +171,10 @@ def display_journey(journey):
     startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
     endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
 
+    _LOGGER.info(f"")
     _LOGGER.info(f"Journey {journey.get('journeyID')}")
     _LOGGER.info(
-        f"Date, Duration: {journeyDate.strftime('%d-%m-%y %H:%M')}, {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}, "
+        f"Date, Duration: {journeyDate.strftime('%m-%d-%y %H:%M')}, {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}, "
         f"Distance: {_CONVERSIONS[_MILES].get('distance')*distance:.2f} {_UNITS[_MILES].get('distance')}, "
         f"Average Speed: {_CONVERSIONS[_MILES].get('speed')*avgSpeed:.2f} {_UNITS[_MILES].get('speed')}, "
         f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
@@ -177,7 +187,7 @@ def display_journey(journey):
     _LOGGER.info(f"{len(locations)} locations logged")
     for location in locations:
         _LOGGER.info(
-            f"Location: ({location.get('latitude'):.5f}, {location.get('longitude'):.5f}), "
+            f"Location: ({location.get('latitude'):.3f}, {location.get('longitude'):.3f}), "
             f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
             f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}, "
         )
@@ -211,7 +221,7 @@ def main():
     journeyList = journeys.get("value")
     randomJourney = random.randint(0, len(journeyList) - 1)
     display_journey(journey=journeyList[randomJourney])
-    # display_journey_details(journey=journeyList[randomJourney])
+    display_journey_details(journey=journeyList[randomJourney])
 
 
 if __name__ == "__main__":
