@@ -15,6 +15,7 @@ from readconfig import read_config
 from fordpass import Vehicle
 from geocodio import GeocodioClient
 from abrp import AbrpClient
+from usgs_elevation import usgs_alt
 
 
 _VEHICLECLIENT = None
@@ -161,11 +162,14 @@ def decode_preconditioning(status):
         _LOGGER.info(f"Vehicle is preconditioning, time is {remoteStartTime} for duration {remoteStartDuration}")
 
 
-def decode_location(status):
+def decode_location(status) -> str:
     global _GEOCLIENT
     locationInfo = _GEOCLIENT.reverse((status.get("gps").get("latitude"), status.get("gps").get("longitude")))
-    components = locationInfo["results"][0]["address_components"]
-    _LOGGER.info(f"Vehicle location is near '{components['street']} {components['suffix']}, {components['city']}'")
+    addr_components = locationInfo["results"][0]["address_components"]
+    _LOGGER.debug(
+        f"Vehicle location is near '{addr_components.get('formatted_street', '???')}, {addr_components.get('city', '')}'"
+    )
+    return f"{addr_components.get('formatted_street', '???')}, {addr_components.get('city', '')}"
 
 
 def differences(previous, current):
@@ -219,7 +223,7 @@ def differences(previous, current):
         diffs["oilLife"] = current.get("oil").get("oilLife")
     # oilLifeActual
     if previous.get("oil").get("oilLifeActual") != current.get("oil").get("oilLifeActual"):
-        diffs["oilLife"] = current.get("oil").get("oilLifeActual")
+        diffs["oilLifeActual"] = current.get("oil").get("oilLifeActual")
     # TMPS
     adjustKPA = 0.1450377 if _PSI else 1.0
     oldTirePressures = [
@@ -321,8 +325,8 @@ def differences(previous, current):
 
     if len(diffs) > 0:
         _LOGGER.info(f"{diffs}")
-        if diffs.get("latitude") or diffs.get("longitude"):
-            decode_location(current)
+        # if diffs.get("latitude") or diffs.get("longitude"):
+        #    decode_location(current)
     else:
         if _LOGSTATUS:
             log_differences(previous, current)
@@ -364,22 +368,27 @@ def get_vehicle_status():
 
 def process_trip(start, end) -> None:
     global _MILES, _EXTENDED
-    unit = "km"
+    units = [
+        {"speed": "kph", "distance": "km", "elevation": "m"},
+        {"speed": "mph", "distance": "miles", "elevation": "ft"},
+    ]
     elapsedTime = (last_status_update(end) - last_status_update(start)).total_seconds() / 3600
     percentUsed = float(start.get("batteryFillLevel").get("value")) - float(end.get("batteryFillLevel").get("value"))
     batteryUsed = percentUsed * 0.01
     kwhUsed = batteryUsed * 88.0 if _EXTENDED else 68.0
     distance = end.get("odometer").get("value") - start.get("odometer").get("value")
-    distpkwh = 99.9 if kwhUsed <= 0.0 else distance / kwhUsed
+    distpkwh = 99.999 if kwhUsed <= 0.0 else distance / kwhUsed
     averageSpeed = distance / elapsedTime
+    startingElevation = usgs_alt(lat=start.get("gps").get("latitude"), lon=start.get("gps").get("latitude"))
+    endingElevation = usgs_alt(lat=end.get("gps").get("latitude"), lon=end.get("gps").get("latitude"))
+    deltaElevation = endingElevation - startingElevation
     if _MILES:
         distance = distance * 0.6214
-        distpkwh = 99.9 if kwhUsed <= 0.0 else distance / kwhUsed
+        distpkwh = 99.999 if kwhUsed <= 0.0 else distance / kwhUsed
         averageSpeed = distance / elapsedTime
-        unit = "miles"
-
+        deltaElevation = deltaElevation * 3.2808
     _LOGGER.info(
-        f"Trip took {elapsedTime:.2f} hours, over {distance:.2f} {unit} using {kwhUsed:.2f} kWh, {distpkwh:.2f} {unit} per kWh, {averageSpeed:.1f} {unit} per hour"
+        f"Trip took {elapsedTime:.2f} hours, {distance:.2f} {units[_MILES].get('distance')} using {kwhUsed:.2f} kWh, {distpkwh:.2f} {units[_MILES].get('distance')} per kWh, average speed was {averageSpeed:.1f} {units[_MILES].get('speed')}, elevation change of {deltaElevation:.0f} {units[_MILES].get('elevation')}"
     )
 
 
@@ -420,6 +429,7 @@ def main() -> None:
     decode_windows(status=currentStatus)
     decode_alarm(status=currentStatus)
     decode_location(status=currentStatus)
+    _LOGGER.info(f"Current location '{decode_location(status=currentStatus)}'")
 
     tripStarted = None
     tripEnded = None
@@ -451,11 +461,12 @@ def main() -> None:
                     if diffs.get("ignitionStatus") in ignitionStartStates:
                         tripStarted = currentStatus
                         _LOGGER.info(f"")
-                        _LOGGER.info(f"New trip ")
+                        _LOGGER.info(f"New trip, departing '{decode_location(status=currentStatus)}'")
                 elif diffs.get("ignitionStatus") in ignitionStopStates:
                     tripEnded = currentStatus
 
                 if tripStarted and tripEnded:
+                    _LOGGER.info(f"Trip ended, arrived at '{decode_location(status=currentStatus)}'")
                     process_trip(start=tripStarted, end=tripEnded)
                     tripStarted = None
                     tripEnded = None

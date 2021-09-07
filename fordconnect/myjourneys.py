@@ -78,7 +78,7 @@ def get_journey_details(id):
 
 def get_street_town(location):
     components = location["results"][0]["address_components"]
-    return f"'{components['street']} {components['suffix']}, {components['city']}'"
+    return f"'{components.get('formatted_street', '???')}, {components.get('city', '???')}'"
 
 
 def display_journey_details(journey):
