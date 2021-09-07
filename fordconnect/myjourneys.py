@@ -91,7 +91,9 @@ def get_street_town(location):
     return f"'{components.get('formatted_street', '???')}, {components.get('city', '???')}'"
 
 
-def display_journey_details(journey):
+def display_detailed_journey(
+    journey, showReverseAddress=False, showElevation=False, showLocations=False, showEvents=False
+):
     global _GEOCLIENT, _MILES, _UNITS, _CONVERSIONS
 
     journeyID = journey.get("journeyID")
@@ -109,48 +111,56 @@ def display_journey_details(journey):
     seconds = duration % 60
     journeyDate = datetime.fromtimestamp(start.get("timestamp"))
 
-    startingElevation = usgs_alt(lat=start.get("latitude"), lon=start.get("longitude"))
-    endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
-    deltaElevation = endingElevation - startingElevation
+    deltaElevation = 0
+    if showElevation:
+        startingElevation = usgs_alt(lat=start.get("latitude"), lon=start.get("longitude"))
+        endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
+        deltaElevation = endingElevation - startingElevation
 
-    startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
-    endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
-
-    _LOGGER.info(f"")
-    _LOGGER.info(f"Detailed Journey view for {journeyID}")
     _LOGGER.info(
-        f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)} on {journeyDate.strftime('%m-%d-%y %H:%M')}"
+        f"Detailed journey {journey.get('journeyID')} on {journeyDate.strftime('%m-%d-%y')} at {journeyDate.strftime('%H:%M')}"
     )
-
     _LOGGER.info(
-        f"Duration: {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}, "
+        f"Duration: {hours:.0f} hour(s), {minutes:.0f} minute(s) and {seconds:.0f} second(s), "
         f"Distance: {_CONVERSIONS[_MILES].get('distance')*distance:.2f} {_UNITS[_MILES].get('distance')}, "
         f"Average Speed: {_CONVERSIONS[_MILES].get('speed')*avgSpeed:.2f} {_UNITS[_MILES].get('speed')}, "
         f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
     )
 
-    locations = details.get("value").get("locations")
-    if len(locations):
-        _LOGGER.info(f"{len(locations)} locations logged")
-        for location in locations:
-            _LOGGER.info(
-                f"Location: ({location.get('latitude'):.3f}, {location.get('longitude'):.3f}), "
-                f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
-                f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}"
-            )
+    if showReverseAddress:
+        startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
+        endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
+        _LOGGER.info(f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)}")
+    else:
+        _LOGGER.info(
+            f"From ({start.get('latitude'):.03f}, {start.get('longitude'):.03f}) to "
+            f"({end.get('latitude'):.03f}, {end.get('longitude'):.03f})"
+        )
 
-    events = details.get("value").get("events")
-    if len(events):
-        _LOGGER.info(f"{len(events)} events logged")
-        for event in events:
-            _LOGGER.info(
-                f"Location: ({event.get('latitude'):.3f}, {event.get('longitude'):.3f}), "
-                f"Time: {datetime.fromtimestamp(event.get('timestamp')).strftime('%H:%M:%S')}, "
-                f"Description: {event.get('description')}"
-            )
+    if showLocations:
+        locations = details.get("value").get("locations")
+        if len(locations):
+            _LOGGER.info(f"{len(locations)} locations logged")
+            for location in locations:
+                _LOGGER.info(
+                    f"Location: ({location.get('latitude'):.3f}, {location.get('longitude'):.3f}), "
+                    f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
+                    f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}"
+                )
+
+    if showEvents:
+        events = details.get("value").get("events")
+        if len(events):
+            _LOGGER.info(f"{len(events)} events logged")
+            for event in events:
+                _LOGGER.info(
+                    f"Location: ({event.get('latitude'):.3f}, {event.get('longitude'):.3f}), "
+                    f"Time: {datetime.fromtimestamp(event.get('timestamp')).strftime('%H:%M:%S')}, "
+                    f"Description: {event.get('description')}"
+                )
 
 
-def display_journey(journey):
+def display_journey(journey, showReverseAddress=False, showElevation=False, showLocations=False):
     global _GEOCLIENT, _MILES, _UNITS, _CONVERSIONS
 
     start = journey.get("start")
@@ -161,36 +171,75 @@ def display_journey(journey):
     seconds = duration % 60
     journeyDate = datetime.fromtimestamp(start.get("timestamp"))
 
-    startingElevation = usgs_alt(lat=start.get("latitude"), lon=start.get("longitude"))
-    endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
-    deltaElevation = endingElevation - startingElevation
+    deltaElevation = 0
+    if showElevation:
+        startingElevation = usgs_alt(lat=start.get("latitude"), lon=start.get("longitude"))
+        endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
+        deltaElevation = endingElevation - startingElevation
 
     distance = journey.get("distance")
     avgSpeed = journey.get("avgSpeed")
 
-    startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
-    endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
-
-    _LOGGER.info(f"")
-    _LOGGER.info(f"Journey {journey.get('journeyID')}")
     _LOGGER.info(
-        f"Date, Duration: {journeyDate.strftime('%m-%d-%y %H:%M')}, {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}, "
+        f"Journey {journey.get('journeyID')} on {journeyDate.strftime('%m-%d-%y')} at {journeyDate.strftime('%H:%M')}"
+    )
+    _LOGGER.info(
+        f"Duration: {hours:.0f} hour(s), {minutes:.0f} minute(s) and {seconds:.0f} second(s), "
         f"Distance: {_CONVERSIONS[_MILES].get('distance')*distance:.2f} {_UNITS[_MILES].get('distance')}, "
         f"Average Speed: {_CONVERSIONS[_MILES].get('speed')*avgSpeed:.2f} {_UNITS[_MILES].get('speed')}, "
         f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
     )
-    _LOGGER.info(
-        f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)} on {journeyDate.strftime('%d-%m-%y %H:%M')}"
-    )
 
-    locations = journey.get("locations")
-    _LOGGER.info(f"{len(locations)} locations logged")
-    for location in locations:
+    if showReverseAddress:
+        startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
+        endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
+        _LOGGER.info(f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)}")
+    else:
         _LOGGER.info(
-            f"Location: ({location.get('latitude'):.3f}, {location.get('longitude'):.3f}), "
-            f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
-            f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}, "
+            f"From ({start.get('latitude'):.03f}, {start.get('longitude'):.03f}) to "
+            f"({end.get('latitude'):.03f}, {end.get('longitude'):.03f})"
         )
+
+    if showLocations:
+        locations = journey.get("locations")
+        _LOGGER.info(f"{len(locations)} locations logged")
+        for location in locations:
+            _LOGGER.info(
+                f"Location: ({location.get('latitude'):.3f}, {location.get('longitude'):.3f}), "
+                f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
+                f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}, "
+            )
+
+
+def display_journeys(
+    journeys,
+    showMostRecentJourney=False,
+    showDetailedJourney=False,
+    showElevation=False,
+    showReverseAddress=False,
+    showLocations=False,
+    showEvents=False,
+):
+    """Display a list of journeys or just the most recent journey"""
+    if showMostRecentJourney:
+        newestJourney = None
+        for journey in journeys:
+            if newestJourney:
+                if journey.get("start").get("timestamp") > newestJourney.get("start").get("timestamp"):
+                    newestJourney = journey
+            else:
+                newestJourney = journey
+        _LOGGER.info(f"Most recent logged journey")
+        display_journey(newestJourney, showElevation, showReverseAddress, showLocations)
+        if showDetailedJourney:
+            _LOGGER.info(f"")
+            display_detailed_journey(newestJourney, showElevation, showReverseAddress, showLocations, showEvents)
+        return
+
+    _LOGGER.info(f"List of all journeys")
+    for journey in journeys:
+        display_journey(journey, showElevation=False, showReverseAddress=False, showLocations=False)
+        _LOGGER.info(f"")
 
 
 def main():
@@ -213,15 +262,22 @@ def main():
     )
     _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
 
-    week_ago = timedelta(weeks=1)
-    end_date = datetime.now()
-    start_date = end_date - week_ago
-    journeys = get_journeys(start=int(start_date.timestamp()), end=int(end_date.timestamp()))
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=2)
+    journeys = get_journeys(start=int(start_date.timestamp()), end=int(end_date.timestamp())).get("value")
+    display_journeys(
+        journeys=journeys,
+        showMostRecentJourney=True,
+        showDetailedJourney=True,
+        showElevation=True,
+        showReverseAddress=True,
+        showLocations=False,
+        showEvents=False,
+    )
 
-    journeyList = journeys.get("value")
-    randomJourney = random.randint(0, len(journeyList) - 1)
-    display_journey(journey=journeyList[randomJourney])
-    display_journey_details(journey=journeyList[randomJourney])
+    _LOGGER.info(f"")
+    _LOGGER.info(f"Display a random journey in the time period")
+    display_journey(journey=journeys[random.randint(0, len(journeys) - 1)])
 
 
 if __name__ == "__main__":
