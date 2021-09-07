@@ -57,8 +57,6 @@ def main():
 
     global _VEHICLECLIENT
 
-    test = fordtime_to_datetime("09-06-2021 16:43:41.123")
-
     logfiles.create_application_log(_LOGGER)
     _LOGGER.info(f"Ford Connect charge log utility {version.get_version()}")
 

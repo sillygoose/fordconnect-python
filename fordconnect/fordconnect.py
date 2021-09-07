@@ -379,8 +379,8 @@ def process_trip(start, end) -> None:
     distance = end.get("odometer").get("value") - start.get("odometer").get("value")
     distpkwh = 99.999 if kwhUsed <= 0.0 else distance / kwhUsed
     averageSpeed = distance / elapsedTime
-    startingElevation = usgs_alt(lat=start.get("gps").get("latitude"), lon=start.get("gps").get("latitude"))
-    endingElevation = usgs_alt(lat=end.get("gps").get("latitude"), lon=end.get("gps").get("latitude"))
+    startingElevation = usgs_alt(lat=start.get("gps").get("latitude"), lon=start.get("gps").get("longitude"))
+    endingElevation = usgs_alt(lat=end.get("gps").get("latitude"), lon=end.get("gps").get("longitude"))
     deltaElevation = endingElevation - startingElevation
     if _MILES:
         distance = distance * 0.6214

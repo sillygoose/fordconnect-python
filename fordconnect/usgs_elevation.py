@@ -24,7 +24,7 @@ def usgs_alt(lat, lon):
             sys.exit(1)
 
         alt = float(data["USGS_Elevation_Point_Query_Service"]["Elevation_Query"]["Elevation"])
-        print(f"USGS alt: {alt:.1f} m, {m_toft(alt):.1f} ft")
+        # print(f"USGS alt: {alt:.1f} m, {m_toft(alt):.1f} ft")
         return alt
 
 

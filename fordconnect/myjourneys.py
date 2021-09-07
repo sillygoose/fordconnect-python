@@ -20,6 +20,7 @@ from datetime import datetime
 
 from fordpass import Vehicle
 from geocodio import GeocodioClient
+from usgs_elevation import usgs_alt
 
 
 _VEHICLECLIENT = None
@@ -28,6 +29,15 @@ _GEOCLIENT = None
 _LOGGER = logging.getLogger("fordconnect")
 
 _MILES = True
+
+_UNITS = [
+    {"speed": "kph", "distance": "km", "elevation": "m"},
+    {"speed": "mph", "distance": "miles", "elevation": "ft"},
+]
+_CONVERSIONS = [
+    {"speed": 3.6, "distance": 0.001, "elevation": 1.0},
+    {"speed": 3.6 * 0.6214, "distance": 0.001 * 0.6214, "elevation": 3.2808},
+]
 
 
 def get_journeys(start, end):
@@ -82,64 +92,95 @@ def get_street_town(location):
 
 
 def display_journey_details(journey):
+    global _GEOCLIENT, _MILES, _UNITS, _CONVERSIONS
+
     journeyID = journey.get("journeyID")
     details = get_journey_details(id=journeyID)
+
+    summary = details.get("value").get("summary")
+    distance = summary.get("distance")
+    avgSpeed = summary.get("avgSpeed")
+
+    start = details.get("value").get("start")
+    end = details.get("value").get("end")
+    duration = end.get("timestamp") - start.get("timestamp")
+    hours = duration // 3600
+    minutes = (duration % 3600) // 60
+    seconds = duration % 60
+    journeyDate = datetime.fromtimestamp(start.get("timestamp"))
+
+    startingElevation = usgs_alt(lat=start.get("latitude"), lon=start.get("longitude"))
+    endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
+    deltaElevation = endingElevation - startingElevation
+
+    # events = details.get("value").get("events")
+
+    startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
+    endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
+
     _LOGGER.info(f"")
     _LOGGER.info(f"Journey details for {journeyID}")
-
-    duration = details["value"].get("summary").get("duration")
-    hours = duration // 3600
-    minutes = (duration // 60) % 60
-
-    distance = details["value"].get("summary").get("distance") / 1000
-    distance_unit = "km"
-    if _MILES:
-        distance = distance * 0.6214
-        distance_unit = "miles"
-
-    avgSpeed = 3600 / 1000 * details["value"].get("summary").get("avgSpeed")
-    speed_unit = "kph"
-    if _MILES:
-        avgSpeed = avgSpeed * 0.6214
-        speed_unit = "mph"
+    _LOGGER.info(
+        f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)} on {journeyDate.strftime('%d-%m-%y %H:%M')}"
+    )
 
     _LOGGER.info(
-        f"Duration {hours:.0f} hours, {minutes:.0f} minutes, Distance {distance:.2f} {distance_unit}, Average Speed {avgSpeed:.2f} {speed_unit}"
+        f"Duration: {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}, "
+        f"Distance: {_CONVERSIONS[_MILES].get('distance')*distance:.2f} {_UNITS[_MILES].get('distance')}, "
+        f"Average Speed: {_CONVERSIONS[_MILES].get('speed')*avgSpeed:.2f} {_UNITS[_MILES].get('speed')}, "
+        f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
     )
+
+    locations = details.get("value").get("locations")
+    _LOGGER.info(f"{len(locations)} locations logged")
+    for location in locations:
+        _LOGGER.info(
+            f"Location: ({location.get('latitude'):.5f}, {location.get('longitude'):.5f}), "
+            f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
+            f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}, "
+        )
 
 
 def display_journey(journey):
+    global _GEOCLIENT, _MILES, _UNITS, _CONVERSIONS
+
+    start = journey.get("start")
+    end = journey.get("end")
+    duration = end.get("timestamp") - start.get("timestamp")
+    hours = duration // 3600
+    minutes = (duration % 3600) // 60
+    seconds = duration % 60
+    journeyDate = datetime.fromtimestamp(start.get("timestamp"))
+
+    startingElevation = usgs_alt(lat=start.get("latitude"), lon=start.get("longitude"))
+    endingElevation = usgs_alt(lat=end.get("latitude"), lon=end.get("longitude"))
+    deltaElevation = endingElevation - startingElevation
+
+    distance = journey.get("distance")
+    avgSpeed = journey.get("avgSpeed")
+
+    startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
+    endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
+
     _LOGGER.info(f"Journey {journey.get('journeyID')}")
-
-    startingAt = journey.get("start")
-    endingAt = journey.get("end")
-
-    startTime = datetime.fromtimestamp(startingAt.get("timestamp"))
-    endTime = datetime.fromtimestamp(endingAt.get("timestamp"))
-    duration = endTime - startTime
-    hours = duration.seconds // 3600
-    minutes = (duration.seconds // 60) % 60
     _LOGGER.info(
-        f"From {startTime.date()} {startTime.time()} to {endTime.date()} {endTime.time()}, {hours} hours, {minutes} minutes"
+        f"Date, Duration: {journeyDate.strftime('%d-%m-%y %H:%M')}, {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}, "
+        f"Distance: {_CONVERSIONS[_MILES].get('distance')*distance:.2f} {_UNITS[_MILES].get('distance')}, "
+        f"Average Speed: {_CONVERSIONS[_MILES].get('speed')*avgSpeed:.2f} {_UNITS[_MILES].get('speed')}, "
+        f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
+    )
+    _LOGGER.info(
+        f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)} on {journeyDate.strftime('%d-%m-%y %H:%M')}"
     )
 
-    distance = journey.get("distance") / 1000
-    unit = "km"
-    if _MILES:
-        distance = distance * 0.6214
-        unit = "miles"
-    _LOGGER.info(f"Distance {distance:.2f} {unit}")
-
-    avgSpeed = 3600 / 1000 * journey.get("avgSpeed")
-    unit = "kph"
-    if _MILES:
-        avgSpeed = avgSpeed * 0.6214
-        unit = "mph"
-    _LOGGER.info(f"Average Speed {avgSpeed:.2f} {unit}")
-
-    startingLocationInfo = _GEOCLIENT.reverse((startingAt.get("latitude"), startingAt.get("longitude")))
-    endingLocationInfo = _GEOCLIENT.reverse((endingAt.get("latitude"), endingAt.get("longitude")))
-    _LOGGER.info(f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)}")
+    locations = journey.get("locations")
+    _LOGGER.info(f"{len(locations)} locations logged")
+    for location in locations:
+        _LOGGER.info(
+            f"Location: ({location.get('latitude'):.5f}, {location.get('longitude'):.5f}), "
+            f"Time: {datetime.fromtimestamp(location.get('timestamp')).strftime('%H:%M:%S')}, "
+            f"Speed: {_CONVERSIONS[_MILES].get('speed')*location.get('speed'):.2f} {_UNITS[_MILES].get('speed')}, "
+        )
 
 
 def main():
@@ -170,7 +211,7 @@ def main():
     journeyList = journeys.get("value")
     randomJourney = random.randint(0, len(journeyList) - 1)
     display_journey(journey=journeyList[randomJourney])
-    display_journey_details(journey=journeyList[randomJourney])
+    # display_journey_details(journey=journeyList[randomJourney])
 
 
 if __name__ == "__main__":
