@@ -82,7 +82,7 @@ def decode_lastupdate(status):
 # 'Off', 'Start', 'Run'
 def decode_ignition(status):
     ignitionStatus = status.get("ignitionStatus").get("value")
-    _LOGGER.info(f"Ignition status is '{ignitionStatus}'")
+    _LOGGER.info(f"Ignition is '{ignitionStatus}'")
 
 
 # 'NotReady', 'ChargingAC', 'ChargeTargetReached', 'ChargeStartCommanded', 'ChargeStopCommanded'
@@ -95,7 +95,7 @@ def decode_charging(status):
 def decode_plug(status):
     plugStatus = status.get("plugStatus").get("value")
     plugState = "plugged in" if plugStatus else "not plugged in"
-    _LOGGER.info(f"Plug status is {plugState}")
+    _LOGGER.info(f"Vehicle is {plugState}")
 
 
 def decode_tpms(status):
@@ -136,7 +136,7 @@ def decode_soc(status):
     soc = float(status.get("batteryFillLevel").get("value"))
     battery = status.get("battery")
     _LOGGER.info(
-        f"Battery is at {soc:.0f}% of capacity, health is {battery.get('batteryHealth').get('value')}, status is {battery.get('batteryStatusActual').get('value')}"
+        f"Battery is at {soc:.1f}% of capacity, health is '{battery.get('batteryHealth').get('value')}', status is {battery.get('batteryStatusActual').get('value')}"
     )
 
 
@@ -438,7 +438,7 @@ def main() -> None:
         limit = 4000
         passes = 0
         while True:
-            time.sleep(10)
+            time.sleep(20)
 
             passes += 1
             if passes > limit:

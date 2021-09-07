@@ -4,6 +4,8 @@
 import logging
 import sys
 import requests
+from datetime import datetime
+from dateutil import tz
 
 import version
 import logfiles
@@ -15,6 +17,15 @@ from fordpass import Vehicle
 _VEHICLECLIENT = None
 
 _LOGGER = logging.getLogger("fordconnect")
+
+
+def fordtime_to_datetime(fordTimeString):
+    """Convert Ford UTC time string to local datetime object"""
+    from_zone = tz.tzutc()
+    to_zone = tz.tzlocal()
+    utc_dt = datetime.strptime(fordTimeString, "%m-%d-%Y %H:%M:%S.%f")
+    utc = utc_dt.replace(tzinfo=from_zone)
+    return utc.astimezone(to_zone)
 
 
 def get_chargelogs():
@@ -59,8 +70,12 @@ def main():
     chargeLogs = get_chargelogs().get("chargeLogs")
     _LOGGER.info(f"Charge logs:")
     for chargeLog in chargeLogs:
+        plugOutTime = fordtime_to_datetime(fordTimeString=chargeLog.get("plugOutTime")).strftime("%m-%d-%Y %H:%M")
+        startBatteryLevel = chargeLog.get("startBatteryLevel")
+        endBatteryLevel = chargeLog.get("endBatteryLevel")
+        chargeLocation = chargeLog.get("chargeLocation")
         _LOGGER.info(
-            f"ID: {chargeLog.get('chargeId')}, Plug out time: {chargeLog.get('plugOutTime')}, Start Battery Level: {chargeLog.get('startBatteryLevel')}, End Battery Level: {chargeLog.get('endBatteryLevel')}, Location: {chargeLog.get('chargeLocation')}"
+            f"ID: {chargeLog.get('chargeId')}, Plug out time: {plugOutTime}, startBatteryLevel: {startBatteryLevel}, End Battery Level: {endBatteryLevel}, Location: {chargeLocation}"
         )
 
 
