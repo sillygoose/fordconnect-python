@@ -22,12 +22,26 @@ _VEHICLECLIENT = None
 _GEOCLIENT = None
 _ABRPCLIENT = None
 
-_MILES = True
+_METRIC = False
 _EXTENDED = True
 _PSI = True
 _LOGSTATUS = True
 
 _LOGGER = logging.getLogger("fordconnect")
+
+_UNITS = [
+    {"speed": "mph", "distance": "miles", "elevation": "ft"},
+    {"speed": "kph", "distance": "km", "elevation": "m"},
+]
+
+# journeys use meters per second, meters, and meters, adjust accordingly when other units are used
+_CONVERSIONS = [
+    {"speed": 3.6 * 0.6214, "distance": 0.001 * 0.6214, "elevation": 3.2808},
+    {"speed": 3.6, "distance": 0.001, "elevation": 1.0},
+]
+
+# standard and extended battery sizes in kWh
+_BATTERY = [68, 88]
 
 
 def last_status_update(status):
@@ -113,23 +127,19 @@ def decode_tpms(status):
 
 
 def decode_odometer(status):
-    global _MILES
-    odometer = float(status.get("odometer").get("value"))
-    unit = "km"
-    if _MILES:
-        odometer = odometer * 0.6214
-        unit = "miles"
-    _LOGGER.info(f"Odometer reads {odometer:.1f} {unit}")
+    global _METRIC
+
+    odometer = float(status.get("odometer").get("value")) * 1000
+    odometer = odometer * _CONVERSIONS[_METRIC].get("distance")
+    _LOGGER.info(f"Odometer reads {odometer:.1f} {_UNITS[_METRIC].get('distance')}")
 
 
 def decode_dte(status):
-    global _MILES
-    dte = float(status.get("elVehDTE").get("value"))
-    unit = "km"
-    if _MILES:
-        dte = dte * 0.6214
-        unit = "miles"
-    _LOGGER.info(f"Estimated range is {dte:.0f} {unit}")
+    global _METRIC
+
+    dte = float(status.get("elVehDTE").get("value")) * 1000
+    dte = dte * _CONVERSIONS[_METRIC].get("distance")
+    _LOGGER.info(f"Estimated range is {dte:.0f} {_UNITS[_METRIC].get('distance')}")
 
 
 def decode_soc(status):
@@ -367,29 +377,33 @@ def get_vehicle_status():
 
 
 def process_trip(start, end) -> None:
-    global _MILES, _EXTENDED
-    units = [
-        {"speed": "kph", "distance": "km", "elevation": "m"},
-        {"speed": "mph", "distance": "miles", "elevation": "ft"},
-    ]
-    elapsedTime = (last_status_update(end) - last_status_update(start)).total_seconds() / 3600
+    """Process the starting and ending status reports for a trip."""
+
+    global _METRIC, _EXTENDED, _CONVERSIONS, _UNITS, _BATTERY
+
+    elapsedTimeHours = (last_status_update(end) - last_status_update(start)).total_seconds() / 3600
+
     percentUsed = float(start.get("batteryFillLevel").get("value")) - float(end.get("batteryFillLevel").get("value"))
-    batteryUsed = percentUsed * 0.01
-    kwhUsed = batteryUsed * 88.0 if _EXTENDED else 68.0
-    distance = end.get("odometer").get("value") - start.get("odometer").get("value")
+    kwhUsed = percentUsed * 0.01 * _BATTERY[_EXTENDED]
+
+    # Must be meters for conversion lookup table
+    dist_km = end.get("odometer").get("value") - start.get("odometer").get("value")
+    dist_m = dist_km * 1000
+    distance = dist_m * _CONVERSIONS[_METRIC].get("distance")
+
     distpkwh = 99.999 if kwhUsed <= 0.0 else distance / kwhUsed
-    averageSpeed = distance / elapsedTime
+    averageSpeed = distance / elapsedTimeHours
+
     startingElevation = usgs_alt(lat=start.get("gps").get("latitude"), lon=start.get("gps").get("longitude"))
     endingElevation = usgs_alt(lat=end.get("gps").get("latitude"), lon=end.get("gps").get("longitude"))
-    deltaElevation = endingElevation - startingElevation
-    if _MILES:
-        distance = distance * 0.6214
-        distpkwh = 99.999 if kwhUsed <= 0.0 else distance / kwhUsed
-        averageSpeed = distance / elapsedTime
-        deltaElevation = deltaElevation * 3.2808
+    deltaElevation = (endingElevation - startingElevation) * _CONVERSIONS[_METRIC].get("elevation")
+
     _LOGGER.info(
-        f"Trip took {elapsedTime:.2f} hours, {distance:.2f} {units[_MILES].get('distance')} using {kwhUsed:.2f} kWh, {distpkwh:.2f} {units[_MILES].get('distance')} per kWh, average speed was {averageSpeed:.1f} {units[_MILES].get('speed')}, elevation change of {deltaElevation:.0f} {units[_MILES].get('elevation')}"
+        f"Trip took {elapsedTimeHours:.2f} hours, {distance:.2f} {_UNITS[_METRIC].get('distance')} using {kwhUsed:.2f} kWh, "
+        f"{distpkwh:.2f} {_UNITS[_METRIC].get('distance')} per kWh, average speed was {averageSpeed:.1f} {_UNITS[_METRIC].get('speed')}, "
+        f"elevation change of {deltaElevation:.0f} {_UNITS[_METRIC].get('elevation')}"
     )
+    _LOGGER.info(f"")
 
 
 def main() -> None:

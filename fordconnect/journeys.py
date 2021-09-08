@@ -34,6 +34,8 @@ _UNITS = [
     {"speed": "kph", "distance": "km", "elevation": "m"},
     {"speed": "mph", "distance": "miles", "elevation": "ft"},
 ]
+
+# journeys use meters per second, meters, and meters, adjust accordingly when other units are used
 _CONVERSIONS = [
     {"speed": 3.6, "distance": 0.001, "elevation": 1.0},
     {"speed": 3.6 * 0.6214, "distance": 0.001 * 0.6214, "elevation": 3.2808},
@@ -118,7 +120,7 @@ def display_detailed_journey(
         deltaElevation = endingElevation - startingElevation
 
     _LOGGER.info(
-        f"Detailed journey {journey.get('journeyID')} on {journeyDate.strftime('%m-%d-%y')} at {journeyDate.strftime('%H:%M')}"
+        f"Detailed journey {journey.get('journeyID')} on {journeyDate.strftime('%Y-%m-%d')} at {journeyDate.strftime('%H:%M')}"
     )
     _LOGGER.info(
         f"Duration: {hours:.0f} hour(s), {minutes:.0f} minute(s) and {seconds:.0f} second(s), "
@@ -181,7 +183,7 @@ def display_journey(journey, showReverseAddress=False, showElevation=False, show
     avgSpeed = journey.get("avgSpeed")
 
     _LOGGER.info(
-        f"Journey {journey.get('journeyID')} on {journeyDate.strftime('%m-%d-%y')} at {journeyDate.strftime('%H:%M')}"
+        f"Journey {journey.get('journeyID')} on {journeyDate.strftime('%Y-%m-%d')} at {journeyDate.strftime('%H:%M')}"
     )
     _LOGGER.info(
         f"Duration: {hours:.0f} hour(s), {minutes:.0f} minute(s) and {seconds:.0f} second(s), "
