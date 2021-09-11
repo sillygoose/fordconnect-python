@@ -387,7 +387,8 @@ def get_vehicle_status():
             continue
         except Exception as e:
             _LOGGER.error(f"Unexpected exception: {e}")
-            break
+            raise
+
     return status
 
 
@@ -441,6 +442,7 @@ def main() -> None:
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
+
     currentStatus = get_vehicle_status()
     _ABRPCLIENT.post(currentStatus)
 
@@ -509,6 +511,9 @@ def main() -> None:
 if __name__ == "__main__":
     # make sure we can run this
     if sys.version_info[0] >= 3 and sys.version_info[1] >= 8:
-        main()
+        try:
+            main()
+        except:
+            pass
     else:
         print("python 3.8 or better required")
