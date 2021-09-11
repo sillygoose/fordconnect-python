@@ -129,18 +129,21 @@ def check_fordconnect(config):
 def check_geocodio(config):
     options = {}
     geocodio_key = config.geocodio
-    if not geocodio_key or "api_key" not in geocodio_key.keys():
-        _LOGGER.warning("Expected option 'api_key' in the 'geocodio' settings")
-        return None
+    geocodio_keys = ["api_key", "enable"]
+    for key in geocodio_keys:
+        if key not in geocodio_key.keys():
+            _LOGGER.error(f"Missing required '{key}' option in 'geocodio' settings")
+            return None
 
     options["api_key"] = geocodio_key.api_key
+    options["enable"] = geocodio_key.enable
     return options
 
 
 def check_abrp(config):
     options = {}
     abrp_key = config.abrp
-    abrp_keys = ["api_key", "token"]
+    abrp_keys = ["api_key", "token", "enable"]
     for key in abrp_keys:
         if key not in abrp_key.keys():
             _LOGGER.error(f"Missing required '{key}' option in 'abrp' settings")
@@ -148,6 +151,7 @@ def check_abrp(config):
 
     options["api_key"] = abrp_key.api_key
     options["token"] = abrp_key.token
+    options["enable"] = abrp_key.enable
     return options
 
 

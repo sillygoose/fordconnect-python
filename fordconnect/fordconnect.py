@@ -191,7 +191,12 @@ def decode_preconditioning(status):
 
 def decode_location(status) -> str:
     global _GEOCLIENT
-    locationInfo = _GEOCLIENT.reverse((status.get("gps").get("latitude"), status.get("gps").get("longitude")))
+    latitude = float(status.get("gps").get("latitude"))
+    longitude = float(status.get("gps").get("longitude"))
+    if not _GEOCLIENT:
+        return f"({latitude:.4f}, {longitude:.4f})"
+
+    locationInfo = _GEOCLIENT.reverse((latitude, longitude))
     addr_components = locationInfo["results"][0]["address_components"]
     _LOGGER.debug(
         f"Vehicle location is near '{addr_components.get('formatted_street', '???')}, {addr_components.get('city', '')}'"
@@ -454,8 +459,10 @@ def main() -> None:
         _LOGGER.error("Error processing YAML configuration - exiting")
         return
 
-    _ABRPCLIENT = AbrpClient(config.abrp.api_key, config.abrp.token)
-    _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
+    if config.abrp.enable:
+        _ABRPCLIENT = AbrpClient(config.abrp.api_key, config.abrp.token)
+    if config.geocodio.enable:
+        _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
     _VEHICLECLIENT = Vehicle(
         username=config.fordconnect.vehicle.username,
         password=config.fordconnect.vehicle.password,
@@ -463,7 +470,8 @@ def main() -> None:
     )
 
     currentStatus = get_vehicle_status()
-    _ABRPCLIENT.post(currentStatus)
+    if _ABRPCLIENT:
+        _ABRPCLIENT.post(currentStatus)
 
     decode_lastupdate(status=currentStatus)
     decode_odometer(status=currentStatus)
@@ -478,7 +486,6 @@ def main() -> None:
     decode_locked(status=currentStatus)
     decode_windows(status=currentStatus)
     decode_alarm(status=currentStatus)
-    decode_location(status=currentStatus)
     _LOGGER.info(f"Current location '{decode_location(status=currentStatus)}'")
 
     tripStarted = None
@@ -502,7 +509,8 @@ def main() -> None:
             previousModified = last_status_update(previousStatus)
             currentModified = last_status_update(currentStatus)
             if currentModified > previousModified:
-                _ABRPCLIENT.post(currentStatus)
+                if _ABRPCLIENT:
+                    _ABRPCLIENT.post(currentStatus)
                 diffs = differences(previous=previousStatus, current=currentStatus)
 
                 ignitionStartStates = ["Start", "Run"]

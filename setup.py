@@ -22,6 +22,7 @@ setup(
         'requests',
         'json',
         'python-dateutil',
+        'fordpass-python',
         'pygeocodio',
         'python-configuration',
         'pyyaml',

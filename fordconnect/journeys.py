@@ -129,7 +129,7 @@ def display_detailed_journey(
         f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
     )
 
-    if showReverseAddress:
+    if _GEOCLIENT and showReverseAddress:
         startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
         endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
         _LOGGER.info(f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)}")
@@ -192,7 +192,7 @@ def display_journey(journey, showReverseAddress=False, showElevation=False, show
         f"Elevation change: {_CONVERSIONS[_MILES].get('elevation')*deltaElevation:.0f} {_UNITS[_MILES].get('elevation')}"
     )
 
-    if showReverseAddress:
+    if _GEOCLIENT and showReverseAddress:
         startingLocationInfo = _GEOCLIENT.reverse((start.get("latitude"), start.get("longitude")))
         endingLocationInfo = _GEOCLIENT.reverse((end.get("latitude"), end.get("longitude")))
         _LOGGER.info(f"From {get_street_town(startingLocationInfo)} to {get_street_town(endingLocationInfo)}")
@@ -262,7 +262,8 @@ def main():
         password=config.fordconnect.vehicle.password,
         vin=config.fordconnect.vehicle.vin,
     )
-    _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
+    if config.geocodio.enable:
+        _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
 
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=2)
