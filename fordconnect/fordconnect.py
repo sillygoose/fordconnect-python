@@ -11,6 +11,7 @@ import pprint
 import version
 import logfiles
 from readconfig import read_config
+from utilities import fordtime_to_datetime
 
 from fordpass import Vehicle
 from geocodio import GeocodioClient
@@ -44,12 +45,12 @@ _CONVERSIONS = [
 _BATTERY = [68, 88]
 
 
-def last_status_update(status):
-    return datetime.strptime(status.get("lastModifiedDate"), "%m-%d-%Y %H:%M:%S")
+def last_status_update(status, useUTC=True):
+    return fordtime_to_datetime(status.get("lastModifiedDate"), useUTC)
 
 
-def server_time(status):
-    return datetime.strptime(status.get("serverTime"), "%m-%d-%Y %H:%M:%S")
+def server_time(status, useUTC=True):
+    return fordtime_to_datetime(status.get("serverTime"), useUTC)
 
 
 def time_since_update(status):
@@ -90,7 +91,9 @@ def decode_doors(status):
 
 
 def decode_lastupdate(status):
-    _LOGGER.info(f"Last modified {last_status_update(status)}, time since update {time_since_update(status)}")
+    _LOGGER.info(
+        f"Last modified {last_status_update(status, useUTC=False).strftime('%Y-%m-%d %H:%M')}, time since last update {time_since_update(status)}"
+    )
 
 
 # 'Off', 'Start', 'Run'
@@ -129,17 +132,29 @@ def decode_tpms(status):
 def decode_odometer(status):
     global _METRIC
 
-    odometer = float(status.get("odometer").get("value")) * 1000
-    odometer = odometer * _CONVERSIONS[_METRIC].get("distance")
-    _LOGGER.info(f"Odometer reads {odometer:.1f} {_UNITS[_METRIC].get('distance')}")
+    odometer_m = float(status.get("odometer").get("value")) * 1000
+    odometer_km = odometer_m * _CONVERSIONS[_METRIC == True].get("distance")
+    odometer_miles = odometer_m * _CONVERSIONS[_METRIC == False].get("distance")
+    if _METRIC:
+        _LOGGER.info(f"Odometer reads {odometer_km:.1f} {_UNITS[_METRIC==True].get('distance')}")
+    else:
+        _LOGGER.info(
+            f"Odometer reads {odometer_km:.1f} {_UNITS[_METRIC==True].get('distance')} ({odometer_miles:.1f} {_UNITS[_METRIC==False].get('distance')})"
+        )
 
 
 def decode_dte(status):
     global _METRIC
 
-    dte = float(status.get("elVehDTE").get("value")) * 1000
-    dte = dte * _CONVERSIONS[_METRIC].get("distance")
-    _LOGGER.info(f"Estimated range is {dte:.0f} {_UNITS[_METRIC].get('distance')}")
+    dte_m = float(status.get("elVehDTE").get("value")) * 1000
+    dte_km = dte_m * _CONVERSIONS[_METRIC == True].get("distance")
+    dte_miles = dte_m * _CONVERSIONS[_METRIC == False].get("distance")
+    if _METRIC:
+        _LOGGER.info(f"Estimated range is {dte_km:.1f} {_UNITS[_METRIC==True].get('distance')}")
+    else:
+        _LOGGER.info(
+            f"Estimated range is {dte_km:.1f} {_UNITS[_METRIC==True].get('distance')} ({dte_miles:.1f} {_UNITS[_METRIC==False].get('distance')})"
+        )
 
 
 def decode_soc(status):
@@ -187,22 +202,33 @@ def differences(previous, current):
 
     diffs = {}
 
-    # log modified times
-    # diffs["lastModifiedDate"] = previous.get("lastModifiedDate") + "/" + current.get("lastModifiedDate")
-    # log server times
-    # diffs["serverTime"] = previous.get("serverTime") + "/" + current.get("serverTime")
-    # firmwareUpgInProgress
-    if previous.get("firmwareUpgInProgress").get("value") != current.get("firmwareUpgInProgress").get("value"):
-        diffs["firmwareUpgInProgress"] = current.get("firmwareUpgInProgress").get("value")
-    # deepSleepInProgress
-    if previous.get("deepSleepInProgress").get("value") != current.get("deepSleepInProgress").get("value"):
-        diffs["deepSleepInProgress"] = current.get("deepSleepInProgress").get("value")
     # ignitionStatus
     if previous.get("ignitionStatus").get("value") != current.get("ignitionStatus").get("value"):
         diffs["ignitionStatus"] = current.get("ignitionStatus").get("value")
     # odometer
     if previous.get("odometer").get("value") != current.get("odometer").get("value"):
         diffs["odometer"] = current.get("odometer").get("value")
+    # elVehDTE
+    if round(float(previous.get("elVehDTE").get("value")), 6) != round(float(current.get("elVehDTE").get("value")), 6):
+        diffs["elVehDTE"] = round(current.get("elVehDTE").get("value"), 1)
+    # batteryFillLevel
+    if previous.get("batteryFillLevel").get("value") != current.get("batteryFillLevel").get("value"):
+        diffs["batteryFillLevel"] = current.get("batteryFillLevel").get("value")
+    # battery
+    if previous.get("battery").get("batteryHealth").get("value") != current.get("battery").get("batteryHealth").get(
+        "value"
+    ):
+        diffs["batteryHealth"] = current.get("battery").get("batteryHealth").get("value")
+    if previous.get("battery").get("batteryStatusActual").get("value") != current.get("battery").get(
+        "batteryStatusActual"
+    ).get("value"):
+        diffs["batteryStatusActual"] = current.get("battery").get("batteryStatusActual").get("value")
+    # batteryPerfStatus
+    if previous.get("batteryPerfStatus").get("value") != current.get("batteryPerfStatus").get("value"):
+        diffs["batteryPerfStatus"] = current.get("batteryPerfStatus").get("value")
+    # batteryChargeStatus
+    if previous.get("batteryChargeStatus").get("value") != current.get("batteryChargeStatus").get("value"):
+        diffs["batteryChargeStatus"] = current.get("batteryChargeStatus").get("value")
     # gps
     if previous.get("gps").get("latitude") != current.get("gps").get("latitude"):
         diffs["latitude"] = current.get("gps").get("latitude")
@@ -216,6 +242,28 @@ def differences(previous, current):
     # alarm
     if previous.get("alarm").get("value") != current.get("alarm").get("value"):
         diffs["alarm"] = current.get("alarm").get("value")
+    # chargingStatus
+    if previous.get("chargingStatus").get("value") != current.get("chargingStatus").get("value"):
+        diffs["chargingStatus"] = current.get("chargingStatus").get("value")
+    # chargeStartTime
+    if previous.get("chargeStartTime").get("value") != current.get("chargeStartTime").get("value"):
+        diffs["chargeStartTime"] = current.get("chargeStartTime").get("value")
+    # chargeEndTime
+    if previous.get("chargeEndTime").get("value") != current.get("chargeEndTime").get("value"):
+        diffs["chargeEndTime"] = current.get("chargeEndTime").get("value")
+    # plugStatus
+    if previous.get("plugStatus").get("value") != current.get("plugStatus").get("value"):
+        diffs["plugStatus"] = current.get("plugStatus").get("value")
+    # log modified times
+    # diffs["lastModifiedDate"] = previous.get("lastModifiedDate") + "/" + current.get("lastModifiedDate")
+    # log server times
+    # diffs["serverTime"] = previous.get("serverTime") + "/" + current.get("serverTime")
+    # firmwareUpgInProgress
+    if previous.get("firmwareUpgInProgress").get("value") != current.get("firmwareUpgInProgress").get("value"):
+        diffs["firmwareUpgInProgress"] = current.get("firmwareUpgInProgress").get("value")
+    # deepSleepInProgress
+    if previous.get("deepSleepInProgress").get("value") != current.get("deepSleepInProgress").get("value"):
+        diffs["deepSleepInProgress"] = current.get("deepSleepInProgress").get("value")
     # PrmtAlarmEvent
     if previous.get("PrmtAlarmEvent").get("value") != current.get("PrmtAlarmEvent").get("value"):
         diffs["PrmtAlarmEvent"] = current.get("PrmtAlarmEvent").get("value")
@@ -252,39 +300,6 @@ def differences(previous, current):
         if oldTirePressures[i] != newTirePressures[i]:
             diffs["TPMS"] = newTirePressures
             break
-    # batteryFillLevel
-    if previous.get("batteryFillLevel").get("value") != current.get("batteryFillLevel").get("value"):
-        diffs["batteryFillLevel"] = current.get("batteryFillLevel").get("value")
-    # battery
-    if previous.get("battery").get("batteryHealth").get("value") != current.get("battery").get("batteryHealth").get(
-        "value"
-    ):
-        diffs["batteryHealth"] = current.get("battery").get("batteryHealth").get("value")
-    if previous.get("battery").get("batteryStatusActual").get("value") != current.get("battery").get(
-        "batteryStatusActual"
-    ).get("value"):
-        diffs["batteryStatusActual"] = current.get("battery").get("batteryStatusActual").get("value")
-    # batteryPerfStatus
-    if previous.get("batteryPerfStatus").get("value") != current.get("batteryPerfStatus").get("value"):
-        diffs["batteryPerfStatus"] = current.get("batteryPerfStatus").get("value")
-    # batteryChargeStatus
-    if previous.get("batteryChargeStatus").get("value") != current.get("batteryChargeStatus").get("value"):
-        diffs["batteryChargeStatus"] = current.get("batteryChargeStatus").get("value")
-    # elVehDTE
-    if round(float(previous.get("elVehDTE").get("value")), 6) != round(float(current.get("elVehDTE").get("value")), 6):
-        diffs["elVehDTE"] = round(current.get("elVehDTE").get("value"), 1)
-    # chargingStatus
-    if previous.get("chargingStatus").get("value") != current.get("chargingStatus").get("value"):
-        diffs["chargingStatus"] = current.get("chargingStatus").get("value")
-    # chargeStartTime
-    if previous.get("chargeStartTime").get("value") != current.get("chargeStartTime").get("value"):
-        diffs["chargeStartTime"] = current.get("chargeStartTime").get("value")
-    # chargeEndTime
-    if previous.get("chargeEndTime").get("value") != current.get("chargeEndTime").get("value"):
-        diffs["chargeEndTime"] = current.get("chargeEndTime").get("value")
-    # plugStatus
-    if previous.get("plugStatus").get("value") != current.get("plugStatus").get("value"):
-        diffs["plugStatus"] = current.get("plugStatus").get("value")
     # fstChrgBulkTEst
     if previous.get("dcFastChargeData").get("fstChrgBulkTEst").get("value") != current.get("dcFastChargeData").get(
         "fstChrgBulkTEst"
@@ -430,14 +445,14 @@ def main() -> None:
     _ABRPCLIENT.post(currentStatus)
 
     decode_lastupdate(status=currentStatus)
-    decode_ignition(status=currentStatus)
-    decode_plug(status=currentStatus)
-    decode_charging(status=currentStatus)
-    decode_preconditioning(status=currentStatus)
     decode_odometer(status=currentStatus)
     decode_dte(status=currentStatus)
     decode_soc(status=currentStatus)
     decode_tpms(status=currentStatus)
+    decode_ignition(status=currentStatus)
+    decode_plug(status=currentStatus)
+    decode_charging(status=currentStatus)
+    decode_preconditioning(status=currentStatus)
     decode_doors(status=currentStatus)
     decode_locked(status=currentStatus)
     decode_windows(status=currentStatus)
@@ -452,7 +467,7 @@ def main() -> None:
         limit = 4000
         passes = 0
         while True:
-            time.sleep(20)
+            time.sleep(15)
 
             passes += 1
             if passes > limit:
@@ -469,9 +484,9 @@ def main() -> None:
                 _ABRPCLIENT.post(currentStatus)
                 diffs = differences(previous=previousStatus, current=currentStatus)
 
+                ignitionStartStates = ["Start", "Run"]
+                ignitionStopStates = ["Off"]
                 if not tripStarted:
-                    ignitionStartStates = ["Start", "Run"]
-                    ignitionStopStates = ["Off"]
                     if diffs.get("ignitionStatus") in ignitionStartStates:
                         tripStarted = currentStatus
                         _LOGGER.info(f"")

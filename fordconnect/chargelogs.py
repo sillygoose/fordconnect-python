@@ -73,7 +73,7 @@ def main():
     chargeLogs = get_chargelogs().get("chargeLogs")
     _LOGGER.info(f"Charge logs:")
     for chargeLog in chargeLogs:
-        plugOutTime = fordtime_to_datetime(fordTimeString=chargeLog.get("plugOutTime")).strftime("%m-%d-%Y %H:%M")
+        plugOutTime = fordtime_to_datetime(fordTimeString=chargeLog.get("plugOutTime")).strftime("%Y-%m-%dY %H:%M")
         startBatteryLevel = chargeLog.get("startBatteryLevel")
         endBatteryLevel = chargeLog.get("endBatteryLevel")
         chargeLocation = chargeLog.get("chargeLocation")
