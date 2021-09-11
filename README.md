@@ -7,7 +7,7 @@ Frankly there needs to be a easier, lightweight way for vehicle data to be acces
 
 
 ## Installation
-Python 3.8 or better is required, you can then install the Python requirements for this application:
+Python 3.9 or newer is required, you can then install the Python requirements for this application:
 ```
     git clone https://github.com/sillygoose/fordconnect
     cd fordconnect
