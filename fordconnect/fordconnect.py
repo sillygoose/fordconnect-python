@@ -57,7 +57,9 @@ def time_since_update(status):
 
 
 # 'Fully open position'
+# 'Btwn 10 % and fully open'
 # 'Btwn 10 % and 60 % open'
+# 'Btwn 60 % and fully open'
 # 'Fully closed position'
 def decode_windows(status):
     windowPosition = [
@@ -66,10 +68,11 @@ def decode_windows(status):
         status.get("windowPosition").get("rearDriverWindowPos").get("value"),
         status.get("windowPosition").get("rearPassWindowPos").get("value"),
     ]
-    if "Btwn 10 % and 60 % open" in windowPosition or "Fully open position" in windowPosition:
-        _LOGGER.info(f"One or more windows are open")
-    else:
+    uniquePositions = set(windowPosition)
+    if len(uniquePositions) == 1 and 'Fully closed position' in uniquePositions:
         _LOGGER.info(f"All windows are closed")
+    else:
+        _LOGGER.info(f"One or more windows are open: {windowPosition}")
 
 
 # 'Closed', 'Ajar'
@@ -346,6 +349,23 @@ def differences(previous, current):
         "innerTailgateDoor"
     ).get("value"):
         diffs["innerTailgateDoor"] = current.get("doorStatus").get("innerTailgateDoor").get("value")
+    # windowPosition
+    if previous.get("windowPosition").get("driverWindowPosition").get("value") != current.get("windowPosition").get(
+        "driverWindowPosition"
+    ).get("value"):
+        diffs["driverWindowPosition"] = current.get("windowPosition").get("driverWindowPosition").get("value")
+    if previous.get("windowPosition").get("passWindowPosition").get("value") != current.get("windowPosition").get(
+        "rigdriverWindowPosipassWindowPositionionhtRearDoor"
+    ).get("value"):
+        diffs["passWindowPosition"] = current.get("windowPosition").get("passWindowPosition").get("value")
+    if previous.get("windowPosition").get("rearDriverWindowPos").get("value") != current.get("windowPosition").get(
+        "rearDriverWindowPos"
+    ).get("value"):
+        diffs["rearDriverWindowPos"] = current.get("windowPosition").get("rearDriverWindowPos").get("value")
+    if previous.get("windowPosition").get("rearPassWindowPos").get("value") != current.get("windowPosition").get(
+        "rearPassWindowPos"
+    ).get("value"):
+        diffs["rearPassWindowPos"] = current.get("windowPosition").get("rearPassWindowPos").get("value")
 
     if len(diffs) > 0:
         _LOGGER.info(f"{diffs}")
