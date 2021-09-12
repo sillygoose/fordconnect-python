@@ -1,19 +1,18 @@
 # Edit this file to reflect your FordConnect details
 
 fordconnect:
-  vehicle:
-    name: !secret fc_vehicle_name
-    vin: !secret fc_vehicle_vin
-    username: !secret fc_vehicle_username
-    password: !secret fc_vehicle_password
+  name: !secret fc_vehicle_name
+  vin: !secret fc_vehicle_vin
+  username: !secret fc_vehicle_username
+  password: !secret fc_vehicle_password
 
 # Geocodio for geocoding support
 geocodio:
-  enable: False
+  enable: True
   api_key: !secret geocodio_api_key
 
 # ABRP for SOC integration support
 abrp:
-  enable: False
+  enable: True
   api_key: !secret abrp_api_key
   token: !secret abrp_token

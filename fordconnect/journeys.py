@@ -257,13 +257,15 @@ def main():
         _LOGGER.error("Error processing YAML configuration - exiting")
         return
 
+    fordconnect = config.get('fordconnect')
     _VEHICLECLIENT = Vehicle(
-        username=config.fordconnect.vehicle.username,
-        password=config.fordconnect.vehicle.password,
-        vin=config.fordconnect.vehicle.vin,
+        username=fordconnect.get('username'),
+        password=fordconnect.get('password'),
+        vin=fordconnect.get('vin'),
     )
-    if config.geocodio.enable:
-        _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
+    geocodio = config.get('geocodio')
+    if geocodio.get('enable'):
+        _GEOCLIENT = GeocodioClient(geocodio.get('api_key'))
 
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=2)

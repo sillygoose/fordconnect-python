@@ -459,14 +459,19 @@ def main() -> None:
         _LOGGER.error("Error processing YAML configuration - exiting")
         return
 
-    if config.abrp.enable:
-        _ABRPCLIENT = AbrpClient(config.abrp.api_key, config.abrp.token)
-    if config.geocodio.enable:
-        _GEOCLIENT = GeocodioClient(config.geocodio.api_key)
+    abrp = config.get('abrp')
+    if abrp.get('enable'):
+        _ABRPCLIENT = AbrpClient(abrp.get('api_key'), abrp.get('token'))
+
+    geocodio = config.get('geocodio')
+    if geocodio.get('enable'):
+        _GEOCLIENT = GeocodioClient(geocodio.get('api_key'))
+
+    fordconnect = config.get('fordconnect')
     _VEHICLECLIENT = Vehicle(
-        username=config.fordconnect.vehicle.username,
-        password=config.fordconnect.vehicle.password,
-        vin=config.fordconnect.vehicle.vin,
+        username=fordconnect.get('username'),
+        password=fordconnect.get('password'),
+        vin=fordconnect.get('vin'),
     )
 
     currentStatus = get_vehicle_status()

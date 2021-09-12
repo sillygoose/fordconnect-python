@@ -106,52 +106,53 @@ def secret_yaml(loader: FullLineLoader, node: yaml.nodes.Node) -> JSON_TYPE:
 
 
 def check_fordconnect(config):
+    """Check for Ford Connect options"""
+    try:
+        vehicleOptions = config.fordconnect.as_dict()
+    except:
+        return {}
+
     options = {}
-    fordconnect_key = config.fordconnect
-    if not fordconnect_key or "vehicle" not in fordconnect_key.keys():
-        _LOGGER.warning("Expected option 'vehicle' in the 'fordconnect' settings")
-        return None
-
-    vehicle_key = fordconnect_key.vehicle
-    vehicle_keys = ["name", "vin", "username", "password"]
+    vehicle_keys = ['name', 'vin', 'username', 'password']
     for key in vehicle_keys:
-        if key not in vehicle_key.keys():
-            _LOGGER.error(f"Missing required '{key}' option in 'vehicle' settings")
-            return None
-
-    options["name"] = vehicle_key.name
-    options["vin"] = vehicle_key.vin
-    options["username"] = vehicle_key.username
-    options["password"] = vehicle_key.password
+        if key not in vehicleOptions.keys():
+            _LOGGER.error(f"Missing required '{key}' option in 'fordconnect' settings")
+            return {}
+        options[key] = vehicleOptions.get(key, None)
     return options
 
 
 def check_geocodio(config):
-    options = {}
-    geocodio_key = config.geocodio
-    geocodio_keys = ["api_key", "enable"]
-    for key in geocodio_keys:
-        if key not in geocodio_key.keys():
-            _LOGGER.error(f"Missing required '{key}' option in 'geocodio' settings")
-            return None
+    """Check for geocodio options and return"""
+    try:
+        geocodioOptions = config.geocodio.as_dict()
+    except:
+        return {}
 
-    options["api_key"] = geocodio_key.api_key
-    options["enable"] = geocodio_key.enable
+    options = {}
+    geocodio_keys = ['enable', 'api_key']
+    for key in geocodio_keys:
+        if key not in geocodioOptions.keys():
+            _LOGGER.error(f"Missing required '{key}' option in 'geocodio' settings")
+            return {}
+        options[key] = geocodioOptions.get(key, None)
     return options
 
 
 def check_abrp(config):
-    options = {}
-    abrp_key = config.abrp
-    abrp_keys = ["api_key", "token", "enable"]
-    for key in abrp_keys:
-        if key not in abrp_key.keys():
-            _LOGGER.error(f"Missing required '{key}' option in 'abrp' settings")
-            return None
+    """Check for geocodio options and return"""
+    try:
+        abrpOptions = config.abrp.as_dict()
+    except:
+        return {}
 
-    options["api_key"] = abrp_key.api_key
-    options["token"] = abrp_key.token
-    options["enable"] = abrp_key.enable
+    options = {}
+    abrp_keys = ["enable", "api_key", "token"]
+    for key in abrp_keys:
+        if key not in abrpOptions.keys():
+            _LOGGER.error(f"Missing required '{key}' option in 'abrp' settings")
+            return {}
+        options[key] = abrpOptions.get(key, None)
     return options
 
 
@@ -161,12 +162,11 @@ def read_config():
         yaml_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG_YAML)
         config = config_from_yaml(data=yaml_file, read_from_file=True)
 
-        fordconnect_options = check_fordconnect(config)
-        geocodio_options = check_geocodio(config)
-        abrp_options = check_abrp(config)
-        if None in [fordconnect_options, geocodio_options, abrp_options]:
-            return None
-        return config
+        options = {}
+        options['fordconnect'] = check_fordconnect(config)
+        options['geocodio'] = check_geocodio(config)
+        options['abrp'] = check_abrp(config)
+        return options
 
     except Exception as e:
         print(e)

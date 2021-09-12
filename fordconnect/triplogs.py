@@ -51,10 +51,11 @@ def main():
         _LOGGER.error("Error processing YAML configuration - exiting")
         return
 
+    fordconnect = config.get('fordconnect')
     _VEHICLECLIENT = Vehicle(
-        username=config.fordconnect.vehicle.username,
-        password=config.fordconnect.vehicle.password,
-        vin=config.fordconnect.vehicle.vin,
+        username=fordconnect.get('username'),
+        password=fordconnect.get('password'),
+        vin=fordconnect.get('vin'),
     )
 
     tripLogs = get_triplogs()
