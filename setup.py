@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='fordconnect',
-    version='0.2.7',
+    version='0.2.8',
     author='sillygoose',
     author_email='sillygoose@me.com',
     description='Python examples for accessing FordPass status, trips, and charging queries.',
@@ -20,7 +20,6 @@ setup(
     ],
     install_requires=[
         'requests',
-        'json',
         'python-dateutil',
         'fordpass',
         'pygeocodio',
